@@ -25,10 +25,10 @@
 # *
 # **************************************************************************
 import os
+from functools import lru_cache
 
 from metadataviewer.dao import StarFile
 from metadataviewer.model import Table, Page
-from .utils import timedLRUCache
 
 
 class ObjectManager:
@@ -67,7 +67,7 @@ class ObjectManager:
         self._dao.fillTable(table)
         return table
 
-    @timedLRUCache(300)
+    # @lru_cache
     def getPage(self, tableName: str, pageNumber: int, pageSize: int):
         if tableName not in self._tables:
             table = self.createTable(tableName)
@@ -99,6 +99,9 @@ class ObjectManager:
             self.page.clear()
             return self.getPage(tableName, self._pageNumber, self._pageSize)
         return None
+
+    def sort(self, tableName, column, reverse=True):
+        self._dao.sort(tableName, column, reverse)
 
 
 

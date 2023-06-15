@@ -47,6 +47,10 @@ class IDAO:
     def getTableNames(self) -> list:
         pass
 
+    @abstractmethod
+    def sort(self, tableName, column, reverse=True) -> None:
+        pass
+
     @staticmethod
     @abstractmethod
     def getCompatibleFileTypes() -> list:

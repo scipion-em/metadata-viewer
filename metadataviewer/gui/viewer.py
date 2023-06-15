@@ -27,7 +27,7 @@
 import os.path
 import sys
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon, QKeySequence, QColor
 from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QMenu,
                              QAction, QDialog, QVBoxLayout, QWidget,
                              QDialogButtonBox, QTableWidget, QCheckBox,
@@ -129,15 +129,15 @@ class ColumnPropertiesTable(QDialog):
         self.show()
 
     def hiddeColumns(self):
-        for column in range(self._table.columnCount()-1):
+        for column in range(self._table.columnCount()):
             if not self.visibleCheckBoxList[column].isChecked():
-                self._table.horizontalHeaderItem(column+1).setCheckState(True)
+                self._table.horizontalHeaderItem(column).setCheckState(True)
             else:
-                self._table.horizontalHeaderItem(column+1).setCheckState(False)
+                self._table.horizontalHeaderItem(column).setCheckState(False)
 
         for column, checkBox in enumerate(self.visibleCheckBoxList):
             display = not checkBox.isChecked()
-            self._table.setColumnHidden(column+1, display)
+            self._table.setColumnHidden(column, display)
 
     def editColums(self):
         pass
@@ -206,6 +206,8 @@ class MetadataTable(QMainWindow):
         self.objecManager.createTable(self._tableName)
         self._pageNumber = 1
         self._pageSize = 100
+        self._actualColumn = None
+        self._orderAsc = True
         self.page = self.objecManager.getPage(self.tableNames[0], self._pageNumber,
                                               self._pageSize)
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
@@ -213,6 +215,7 @@ class MetadataTable(QMainWindow):
         self.setGeometry(100, 100, 700, 300)
         self.table = QTableWidget()
         self.propertiesTableDialog = ColumnPropertiesTable(self, self.table)
+        self.table.horizontalHeader().sortIndicatorOrder()
         self._createActions()
         self._createMenuBar()
         self._createToolBars(1, 100)
@@ -230,21 +233,42 @@ class MetadataTable(QMainWindow):
         self._createHeader()
         self._fillTable()
         self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
+        self.table.horizontalHeader().sectionClicked.connect(self.orderByColumn)
+
+    def orderByColumn(self, column):
+        # Alternate ascending and descending order
+        oldColumn = self._actualColumn
+        if column == self._actualColumn:
+            self._orderAsc = not self._orderAsc
+        else:
+            oldColumn = self._actualColumn
+            self._actualColumn = column
+            self._orderAsc = True
+
+        self.table.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+        if oldColumn is not None:
+            self.table.horizontalHeaderItem(oldColumn).setIcon(QIcon(None))
+
+        icon = QIcon('../resources/up-arrow.png') if self._orderAsc else QIcon('../resources/down-arrow.png')
+        self.table.horizontalHeaderItem(column).setIcon(icon)
+        self.objecManager.sort(self._tableName, column, self._orderAsc)
+        self.table.setRowCount(0)
+        self.page = self.objecManager.getPage(self._tableName, 1,  self._pageSize)
+        self._fillTable()
 
     def _createHeader(self):
         # Creating the header
         columns = self.page.getTable().getColumns()
-        self.table.setColumnCount(len(columns) + 1)
-        self.table.setHorizontalHeaderItem(0, QTableWidgetItem('id'))
+        self.table.setColumnCount(len(columns))
         for i, column in enumerate(columns):
             item = QTableWidgetItem(str(column.getName()))
             item.setTextAlignment(Qt.AlignCenter)
-            self.table.setHorizontalHeaderItem(i + 1, item)
+            self.table.setHorizontalHeaderItem(i, item)
 
     def _fillTable(self):
         rows = self.page.getRows()
         columns = self.page.getTable().getColumns()
-        self.table.setColumnCount(len(columns) + 1)
+        self.table.setColumnCount(len(columns))
         self.table.setRowCount(self._rowsCount)
         # Inserting rows into the table
         self._addRows(rows, 0)
@@ -258,6 +282,9 @@ class MetadataTable(QMainWindow):
     def _addRows(self, rows, activeRow):
         columnsCount = len(rows[0].getValues())
         for row, rowValues in enumerate(rows):
+            color = QColor(245, 245, 220)
+            if row % 2 == 0:
+                color = QColor(255, 255, 255)
             if rowValues.getValues():
                 item = QTableWidgetItem(str(rowValues.getId()))
                 item.setTextAlignment(Qt.AlignCenter)
@@ -266,7 +293,8 @@ class MetadataTable(QMainWindow):
                 for col in range(columnsCount):
                     item = QTableWidgetItem(str(values[col]))
                     item.setTextAlignment(Qt.AlignCenter)
-                    self.table.setItem(activeRow + row, col + 1, item)
+                    item.setBackground(color)
+                    self.table.setItem(activeRow + row, col, item)
 
     def mouseWheelEvent(self, event):
         # Handle the mouse wheel event
@@ -302,47 +330,92 @@ class MetadataTable(QMainWindow):
         self.statusbar = QStatusBar()
         self.setStatusBar(self.statusbar)
         self.statusbar.setFixedHeight(30)
-        closeButton = QPushButton('Close')
-        closeButton.setIcon(QIcon("../resources/fa-close.png"))
-        self.statusbar.addPermanentWidget(closeButton)
+        # closeButton = QPushButton('Close')
+        # closeButton.setIcon(QIcon("../resources/fa-close.png"))
+        # self.statusbar.addPermanentWidget(closeButton)
 
     def _createActions(self):
         # File actions
         self.newAction = QAction(self)
-        self.newAction.setText("&New")
-        self.newAction.setIcon(QIcon("../resources/fa-list-ul.png"))
-        # Edit actions
+        self.newAction.setText("&Open...")
+        self.newAction.setShortcut(QKeySequence("Ctrl+O"))
+        self.newAction.setIcon(QIcon("../resources/folder.png"))
+
+        self.exitAction = QAction(self)
+        self.exitAction.setText("&Exit")
+        self.exitAction.setShortcut(QKeySequence("Ctrl+X"))
+        self.exitAction.setIcon(QIcon("../resources/exit.png"))
+        self.exitAction.triggered.connect(sys.exit)
+
+        # Display actions
         self.propertiesTableAction = QAction("Columns...", self)
         self.propertiesTableAction.triggered.connect(self.propertiesTableDialog.openTableDialog)
+        self.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
+        self.propertiesTableAction.setIcon(QIcon("../resources/table.png"))
 
 
-        self.goto_gallery_action = QAction("Go to gallery view", self)
-        self.goto_gallery_action.setIcon(QIcon("../resources/fa-list-ul.png"))
+        # Toolbar action
+
+        self.goto_table_action = QAction("Go to TABLE view", self)
+        self.goto_table_action.setIcon(QIcon("../resources/table-view.png"))
+        self.goto_table_action.setEnabled(False)
+        self.goto_table_action.triggered.connect(self._loadTableView)
+
+        self.goto_gallery_action = QAction("Go to GALLERY view", self)
+        self.goto_gallery_action.setIcon(QIcon("../resources/gallery.png"))
+        self.goto_gallery_action.triggered.connect(self._loadGalleryView)
+
+    def _loadTableView(self):
+        self.goto_table_action.setEnabled(False)
+        self.goto_gallery_action.setEnabled(True)
+
+    def _loadGalleryView(self):
+        self.goto_gallery_action.setEnabled(False)
+        self.goto_table_action.setEnabled(True)
+
 
     def _createMenuBar(self):
         # Creating the menu
         menu_bar = QMenuBar(self)
+
+        #  File menu
         fileMenu = QMenu("&File", self)
         menu_bar.addMenu(fileMenu)
-        displayMenu = QMenu("Display", self)
+        fileMenu.addAction(self.newAction)
+        fileMenu.addSeparator()
+        fileMenu.addAction(self.exitAction)
+
+        # Display menu
+        displayMenu = QMenu("&Display", self)
         menu_bar.addMenu(displayMenu)
+        displayMenu.addAction(self.propertiesTableAction)
+
+        # Tools menu
         toolsMenu = QMenu("&Tools", self)
         menu_bar.addMenu(toolsMenu)
+
+        # Help menu
         helpMenu = QMenu("&Help", self)
         menu_bar.addMenu(helpMenu)
 
-        displayMenu.addAction(self.propertiesTableAction)
 
         self.setMenuBar(menu_bar)
 
     def _createToolBars(self, pageNumber=1, pageSize=100):
         # Using a title
         toolBar = self.addToolBar("")
-        # toolBar.addAction(self.goto_gallery_action)th the table names
-        self.blockLabel = QLabel('\tBlock')
+        toolBar.addAction(self.goto_table_action)
+        toolBar.addAction(self.goto_gallery_action)
+
+        self.blockLabelIcon = QLabel('\t')
+        toolBar.addWidget(self.blockLabelIcon)
+        self.blockLabel = QLabel('Block')
+        icon = QIcon('../resources/sections.png')
+        self.blockLabel.setPixmap(icon.pixmap(16, 16))
+        self.blockLabel.setToolTip('Blocks')
         toolBar.addWidget(self.blockLabel)
         self.bockTableName = QComboBox()
-        self.bockTableName.setFixedWidth(170)
+        self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
             self.bockTableName.addItem(tableName)
             # Connect signals to the methods.
