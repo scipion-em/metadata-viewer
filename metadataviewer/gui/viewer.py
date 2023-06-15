@@ -27,21 +27,22 @@
 import os.path
 import sys
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QStandardItemModel, QStandardItem, QIcon
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QTableView, QMenuBar,
-                             QMenu, QAction, QDialog, QVBoxLayout, QWidget,
+from PyQt5.QtGui import QIcon
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QMenu,
+                             QAction, QDialog, QVBoxLayout, QWidget,
                              QDialogButtonBox, QTableWidget, QCheckBox,
-                             QHBoxLayout, QTableWidgetItem, QSpinBox, QLabel,
-                             QComboBox, QPushButton, QStatusBar,
-                             QAbstractItemView, QScrollArea, QScrollBar)
+                             QHBoxLayout, QTableWidgetItem, QLabel,
+                             QComboBox, QPushButton, QStatusBar, QScrollBar,
+                             QAbstractItemView)
 
 from metadataviewer.model.object_manager import ObjectManager
 
 
 class ColumnPropertiesTable(QDialog):
-    def __init__(self, parent):
+    def __init__(self, parent, table):
         super().__init__()
         self.parent = parent
+        self._table = table
         self.title = 'Columns'
         self.left = parent.x()
         self.top = parent.y()
@@ -55,7 +56,6 @@ class ColumnPropertiesTable(QDialog):
         self.setWindowTitle(self.title)
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.createTable()
-
         self.layout = QVBoxLayout()
         self.layout.addWidget(self.tableWidget)
         # Creating buttons
@@ -74,8 +74,21 @@ class ColumnPropertiesTable(QDialog):
         self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem("Edit"))
         self.tableWidget.move(0, 0)
 
-    def InsertTable(self):
+    def InsertRows(self):
+        tableHeaderList = []
+        for column in range(self._table.columnCount()):
+            headerItem = self._table.horizontalHeaderItem(column)
+            if not headerItem.checkState():
+                tableHeaderList.append(headerItem.text())
+            else:
+                tableHeaderList.append('')
+
         for i in range(self.numRow):
+            if self.columns[i].getName() in tableHeaderList:
+                self.visibleCheckBoxList[i].setChecked(True)
+            else:
+               self.visibleCheckBoxList[i].setChecked(False)
+
             visibleCheckbox = self._createCellWidget(self.visibleCheckBoxList[i])
             renderCheckbox = self._createCellWidget(self.renderCheckBoxList[i])
             editCheckbox = self._createCellWidget(self.editCheckBoxList[i])
@@ -109,10 +122,77 @@ class ColumnPropertiesTable(QDialog):
             self.visibleCheckBoxList.append(ckbox)
             self.renderCheckBoxList.append(ckbox1)
             self.editCheckBoxList.append(ckbox2)
-        self.InsertTable()
+        self.InsertRows()
 
     def openTableDialog(self):
+        self.InsertRows()
         self.show()
+
+    def hiddeColumns(self):
+        for column in range(self._table.columnCount()-1):
+            if not self.visibleCheckBoxList[column].isChecked():
+                self._table.horizontalHeaderItem(column+1).setCheckState(True)
+            else:
+                self._table.horizontalHeaderItem(column+1).setCheckState(False)
+
+        for column, checkBox in enumerate(self.visibleCheckBoxList):
+            display = not checkBox.isChecked()
+            self._table.setColumnHidden(column+1, display)
+
+    def editColums(self):
+        pass
+
+    def renderColums(self):
+        pass
+
+    def accept(self):
+        self.hiddeColumns()
+        self.renderColums()
+        self.editColums()
+        self.close()
+
+
+class CustomScrollBar(QScrollBar):
+    def __init__(self, parent=None):
+        super().__init__(parent)
+        self.setSingleStep(1)
+        self.dragging = False
+        self.start_value = 0
+        self.start_pos = None
+
+    def wheelEvent(self, event):
+        # Handle the mouse wheel event
+        step = 1
+        delta = event.angleDelta().y() / 120  # Number of mouse wheel steps
+        # If moved up, decreases the value of scroll
+        if delta > 0:
+            self.setValue(self.value() - step)
+        # If it moves down, it increases the scroll value.
+        elif delta < 0:
+            self.setValue(self.value() + step)
+
+        event.accept()
+
+    def mousePressEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = True
+            self.start_value = self.value()
+            self.start_pos = event.pos()
+            event.accept()
+
+    def mouseMoveEvent(self, event):
+        if self.dragging and self.start_pos is not None:
+            delta = event.pos() - self.start_pos
+            steps = int(delta.y() / self.singleStep())
+            new_value = self.start_value + steps
+            self.setValue(new_value)
+            event.accept()
+
+    def mouseReleaseEvent(self, event):
+        if event.button() == Qt.LeftButton:
+            self.dragging = False
+            self.start_pos = None
+            event.accept()
 
 
 class MetadataTable(QMainWindow):
@@ -120,89 +200,103 @@ class MetadataTable(QMainWindow):
         super().__init__()
         self._fileName = os.path.abspath(fileName)
         self.objecManager = ObjectManager(fileName)
+        self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
-        self.objecManager.createTable(self.tableNames[0])
-        self.page = self.objecManager.getPage(self.tableNames[0], 1, 100)
+        self._tableName = self.tableNames[0]
+        self.objecManager.createTable(self._tableName)
+        self._pageNumber = 1
+        self._pageSize = 100
+        self.page = self.objecManager.getPage(self.tableNames[0], self._pageNumber,
+                                              self._pageSize)
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
         self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 700, 300)
-        self.propertiesTableDialog = ColumnPropertiesTable(self)
-        self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
+        self.table = QTableWidget()
+        self.propertiesTableDialog = ColumnPropertiesTable(self, self.table)
         self._createActions()
         self._createMenuBar()
         self._createToolBars(1, 100)
         self._createStatusBar()
+        self._createTable()
+
+    def _createTable(self):
+        # Creating the table
+        self.mainWidget = QWidget()
+        self.mainLayout = QVBoxLayout(self.mainWidget)
+        self.table.verticalHeader().setVisible(False)
+        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self._createHeader()
         self._fillTable()
+        self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
+
+    def _createHeader(self):
+        # Creating the header
+        columns = self.page.getTable().getColumns()
+        self.table.setColumnCount(len(columns) + 1)
+        self.table.setHorizontalHeaderItem(0, QTableWidgetItem('id'))
+        for i, column in enumerate(columns):
+            item = QTableWidgetItem(str(column.getName()))
+            item.setTextAlignment(Qt.AlignCenter)
+            self.table.setHorizontalHeaderItem(i + 1, item)
 
     def _fillTable(self):
-        mainWidget = QWidget()
-        self.mainLayout = QVBoxLayout(mainWidget)
-
-        # Creating the table
-        self.table = QTableWidget()
-        columns = self.page.getTable().getColumns()
         rows = self.page.getRows()
-        self.table.setRowCount(len(rows))
-        self.table.setColumnCount(len(columns))
-        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOff)
-
-        # Creating the header
-        for i, column in enumerate(columns):
-            self.table.setHorizontalHeaderItem(i, QTableWidgetItem(str(column.getName())))
-
+        columns = self.page.getTable().getColumns()
+        self.table.setColumnCount(len(columns) + 1)
+        self.table.setRowCount(self._rowsCount)
         # Inserting rows into the table
-        for row, rowValues in enumerate(rows):
-            if rowValues:
-                for col in range(len(columns)):
-                    item = QTableWidgetItem(str(rowValues[col]))
-                    self.table.setItem(row, col, item)
-
+        self._addRows(rows, 0)
         self.table.resizeColumnsToContents()
-
-        # Calculating the minimum scrolling height(vertical)
-        rowHeight = self.table.rowHeight(0)  # row height
         self._rowsCount = self.objecManager.getTableRowCount(self.bockTableName.currentText())
-        minHeight = rowHeight * self._rowsCount  # height of the scroll
+        self.setCentralWidget(self.table)
+        self.scrollBar = CustomScrollBar(self.table)
+        self.table.setVerticalScrollBar(self.scrollBar)
+        self.scrollBar.valueChanged.connect(lambda: self._loadRows())
 
-        # Calculating the minimum scrolling width (horizontal)
-        minWidth = 0
-        for i in range(len(columns)):
-            minWidth += self.table.columnWidth(i)
+    def _addRows(self, rows, activeRow):
+        columnsCount = len(rows[0].getValues())
+        for row, rowValues in enumerate(rows):
+            if rowValues.getValues():
+                item = QTableWidgetItem(str(rowValues.getId()))
+                item.setTextAlignment(Qt.AlignCenter)
+                self.table.setItem(activeRow + row, 0, item)
+                values = rowValues.getValues()
+                for col in range(columnsCount):
+                    item = QTableWidgetItem(str(values[col]))
+                    item.setTextAlignment(Qt.AlignCenter)
+                    self.table.setItem(activeRow + row, col + 1, item)
 
-        mainWidget.setMinimumHeight(minHeight)
-        mainWidget.setMinimumWidth(minWidth)
+    def mouseWheelEvent(self, event):
+        # Handle the mouse wheel event
+        step = 1
+        delta = event.angleDelta().y() / 120  # Number of mouse wheel steps
 
-        # Setting the height of main widget
-        self.mainLayout.addWidget(self.table)
+        # If moved up, decreases the value of scroll
+        if delta > 0:
+            self.scrollBar.setValue(self.scrollBar.value() - step)
+        # If it moves down, it increases the scroll value.
+        elif delta < 0:
+            self.scrollBar.setValue(self.scrollBar.value() + step)
 
-        # Creating the scroll area
-        self.scrollArea = QScrollArea()
-        self.scrollArea.setWidgetResizable(True)
-        # Setting the main widget as content of scrolling
-        self.scrollArea.setWidget(mainWidget)
-        # adding the scroll area to the main window
-        self.setCentralWidget(self.scrollArea)
-        self.scrollArea.verticalScrollBar().valueChanged.connect(lambda: self._loadRows())
+        event.accept()
 
     def _loadRows(self):
         # getting current value
-        scrollBar = self.table.verticalScrollBar()
-        maxValue = scrollBar.maximum()
-        currentValue = self.scrollArea.verticalScrollBar().value()
-        activeRow = int(currentValue/self.table.rowHeight(0))
+        scrollBar = self.scrollBar
+        currentValue = scrollBar.value()
+        pageSize = self.page.getPageSize()
 
-        if activeRow % 80 == 0:
-            start = self.table.rowCount()
-            end = start + 50
-            self.table.setRowCount(activeRow + 100)
-            self.page = self.objecManager.getRows(activeRow + 100)
-            rows = self.page.getRows()
-            columns = self.page.getTable().getColumns()
-            for row, rowValues in enumerate(rows):
-                if rowValues:
-                    for col in range(len(columns)):
-                        item = QTableWidgetItem(str(rowValues[col]))
-                        self.table.setItem(row, col, item)
+        if currentValue % pageSize == 0:
+            self.page.setPageNumber(int(currentValue / pageSize) + 1)  # next or previous page
+            pageNumber = self.page.getPageNumber()
+            page = self.objecManager.getPage(self._tableName, pageNumber,
+                                             pageSize)
+            rows = page.getRows()
+            if rows:
+                self._addRows(rows, currentValue)
+                self.table.resizeColumnsToContents()
 
     def _createStatusBar(self):
         self.statusbar = QStatusBar()
@@ -220,6 +314,7 @@ class MetadataTable(QMainWindow):
         # Edit actions
         self.propertiesTableAction = QAction("Columns...", self)
         self.propertiesTableAction.triggered.connect(self.propertiesTableDialog.openTableDialog)
+
 
         self.goto_gallery_action = QAction("Go to gallery view", self)
         self.goto_gallery_action.setIcon(QIcon("../resources/fa-list-ul.png"))
@@ -243,9 +338,7 @@ class MetadataTable(QMainWindow):
     def _createToolBars(self, pageNumber=1, pageSize=100):
         # Using a title
         toolBar = self.addToolBar("")
-        # toolBar.addAction(self.goto_gallery_action)
-
-        # Adding a combobox with the table names
+        # toolBar.addAction(self.goto_gallery_action)th the table names
         self.blockLabel = QLabel('\tBlock')
         toolBar.addWidget(self.blockLabel)
         self.bockTableName = QComboBox()
@@ -286,11 +379,16 @@ class MetadataTable(QMainWindow):
                                    not table_view.isColumnHidden(column))
 
     def selectTable(self):
-        self.page = self.objecManager.getTable(self.bockTableName.currentText())
+        self.table.setRowCount(0)
+        self._tableName = self.bockTableName.currentText()
+        self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
+        self.page = self.objecManager.getPage(self._tableName,
+                                              self._pageNumber, self._pageSize)
         if self.page:
+            self._createHeader()
             self._fillTable()
             self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
-            self._rowsCount = self.objecManager.getTableRowCount(self.bockTableName.currentText())
+            self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
             self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
 
     def changePage(self):

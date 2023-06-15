@@ -30,16 +30,14 @@ from .model import IDAO
 
 class StarFile(IDAO):
     """
-    Class to read STAR files.
+    Class to handle STAR files.
     """
     def __init__(self, inputFile):
         self._file = self.__loadFile(inputFile)
-        # While parsing the file, store the offsets for data_ blocks
-        # for quick access when need to load data rows
-        self._offsets = {}
         self._tableCount = {}
         self._tableData = {}
-        self._names = []  # flag to check if we searched all tables
+        self._labels = {}
+        self._names = []
 
     def __loadFile(self, inputFile):
         return open(inputFile, 'r')
@@ -51,124 +49,66 @@ class StarFile(IDAO):
         """
         Read the given table from the start file and parse columns definition
         and data rows.
-        args:
-            tableName: the name of the table to read
-            kwargs:
-                page: number of the page to read
-                getRows: number of rows the page will have
         """
-        table = page.getTable()
-        for row in self._iterRowLines(table.seek, page.getPageNumber(),
+        tableName = page.getTable().getName()
+        for row in self._iterRowLines(tableName, page.getPageNumber(),
                                       page.getPageSize()):
             if row:
-                page.addRow(row.split())
+                page.addRow(row)
 
     def getTableRowCount(self, tableName):
         return self._tableCount[tableName]
 
     def getTableNames(self):
-        """ Return all the names of the data_ blocks found in the file. """
+        """ Return all the names of the data_ blocks found in the file and
+            fill all labels and data of every table name """
         if not self._names:  # scan for ALL table names
             f = self._file
-            f.seek(0)  # move file pointer to the beginning
-            offset = 0
             line = f.readline()
             while line:
                 # While searching for a data line, we will store the offsets
                 # for any data_ line that we find
                 if line.startswith('data_'):
                     tn = line.strip().replace('data_', '')
-                    self._offsets[tn] = offset
                     self._names.append(tn)
                     data = self._getData()
                     self._tableCount[tn] = data[0]
-                    self._tableData[tn] = data[1]
-
-                offset = f.tell()
+                    self._labels[tn] = data[1]
+                    self._tableData[tn] = data[2]
                 line = f.readline()
 
         return list(self._names)
 
     def _getData(self):
+        """ Method to get all information of the table"""
         self._findLabelLine()
-        data = []
-        line = self._findValuesLine()
+        data = {}
+        line, labels = self._getLabels()
         count = 0
         f = self._file
         while line and not line.startswith('\n'):
-            data.append(line)
+            data[count] = line
             count += 1
-            line = f.readline()
-        return count, data
+            line = f.readline().strip()
+        return count, labels, data
 
-    def _findValuesLine(self):
+    def _getLabels(self):
         line = self._line
+        labels = []
         while line.startswith('\n'):
             line = self._file.readline()
         while line.startswith('_'):
+            parts = line.split()
+            labels.append(parts[0][1:])
             line = self._file.readline()
         while line.startswith('\n'):
             line = self._file.readline()
-        return line
+        return line, labels
 
     def _loadStarFileInfo(self, table):
-        self._findDataLine(table.getName())
-        # Find first column line and parse all columns
-        self._findLabelLine()
-        colNames = []
-        values = []
-
-        while self._line.startswith('_'):
-
-            parts = self._line.split()
-            colNames.append(parts[0][1:])
-            if not self._foundLoop:
-                values.append(parts[1])
-            table.seek = self._file.tell()
-            self._line = self._file.readline().strip()
-
-        if self._foundLoop:
-            values = self._line.split() if self._line else []
+        colNames = self._labels[table.getName()]
+        values = self._tableData[table.getName()][0].split()
         table.createColumns(colNames, values)
-
-    def _findDataLine(self, dataName):
-        """ Raise an exception if the desired data string is not found.
-        Move the line pointer after the desired line if found.
-        """
-        f = self._file
-
-        # Check if we know the offset for this data line
-        dataStr = 'data_' + dataName
-        if dataStr in self._offsets:
-            f.seek(self._offsets[dataStr])
-            f.readline()
-            return
-
-        full_scan = False
-        initial_offset = offset = f.tell()
-        line = f.readline()
-        # Iterate all lines once if necessary, going back to
-        # the beginning of the file once
-        while not full_scan:
-            while line:
-                # While searching for a data line, we will store the offsets
-                # for any data_ line that we find
-                if line.startswith('data_'):
-                    ds = line.strip()
-                    self._offsets[ds] = offset
-                    if ds == dataStr:
-                        return
-                offset = f.tell()
-                if offset == initial_offset:
-                    full_scan = True
-                    break
-                line = f.readline()
-            # Start from the beginning and scan until complete the full loop
-            f.seek(0)
-            offset = 0
-            line = f.readline()
-
-        raise Exception("'%s' block was not found" % dataStr)
 
     def _findLabelLine(self):
         line = ''
@@ -186,19 +126,18 @@ class StarFile(IDAO):
         self._line = line.strip()
         self._foundLoop = foundLoop
 
-    def _iterRowLines(self, seek, pageNumber, pageSize):
-        self._lineCount = 0
-        self._file.seek(seek)
-
+    def _iterRowLines(self, tableName, pageNumber, pageSize):
         # moving to the first row of the page
         firstRow = pageNumber * pageSize - pageSize
-        for i in range(firstRow):
-            self._line = self._file.readline().strip()
-
-        while self._line and self._lineCount < pageSize:
-            self._lineCount += 1
-            self._line = self._file.readline().strip()
-            yield self._line
+        endRow = pageNumber * pageSize + 30  # getting 30 rows more
+        if self._tableCount[tableName] == 1:
+            yield 1, self._tableData[tableName][0].strip().split()
+            return
+        if firstRow + pageSize + 30 > self._tableCount[tableName]:
+            endRow = self._tableCount[tableName]
+        for i in range(firstRow, endRow):
+            values = self._tableData[tableName][i].strip()
+            yield i+1, values.split()
 
     def close(self):
         if getattr(self, '_file', None):

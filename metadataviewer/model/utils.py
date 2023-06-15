@@ -24,30 +24,25 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from functools import lru_cache, wraps
+from datetime import datetime, timedelta
 
-from abc import abstractmethod
-from metadataviewer.model import Page, Table
 
+def timedLRUCache(seconds: int, maxsize: int = 128):
+    """Method to keep in cache some functions call"""
+    def wrapperCache(func):
+        func = lru_cache(maxsize=maxsize)(func)
+        func.lifetime = timedelta(seconds=seconds)
+        func.expiration = datetime.utcnow() + func.lifetime
 
-class IDAO:
+        @wraps(func)
+        def wrappedFunc(*args, **kwargs):
+            if datetime.utcnow() >= func.expiration:
+                func.cache_clear()
+                func.expiration = datetime.utcnow() + func.lifetime
 
-    @abstractmethod
-    def __init__(self, filename: str):
-        pass
+            return func(*args, **kwargs)
 
-    @abstractmethod
-    def fillPage(self, page: Page) -> None:
-       pass
+        return wrappedFunc
 
-    @abstractmethod
-    def fillTable(self, table: Table) -> None:
-        pass
-
-    @abstractmethod
-    def getTableNames(self) -> list:
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def getCompatibleFileTypes() -> list:
-        pass
+    return wrapperCache

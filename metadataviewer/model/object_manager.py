@@ -24,17 +24,24 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os
+
 from metadataviewer.dao import StarFile
 from metadataviewer.model import Table, Page
+from .utils import timedLRUCache
 
 
 class ObjectManager:
     def __init__(self, fileName: str):
         self._fileName = fileName
+        self._tables = {}
         self._pageNumber = 1
         self._pageSize = 100
         self._registeredDAO = []
-        self._selectDAO()
+        self.__registerterOwnDAOs()
+
+    def __registerterOwnDAOs(self):
+        self.registerDAO(StarFile)
 
     def getRegisteredDAO(self):
         return self._registeredDAO
@@ -42,43 +49,51 @@ class ObjectManager:
     def registerDAO(self, dao):
         self._registeredDAO.append(dao)
 
-    def _selectDAO(self):
-        if self._fileName.endswith('.star'):
-            self.pageFromStarFile = StarFile(self._fileName)
+    def selectDAO(self):
+        for dao in self._registeredDAO:
+            # instance = getattr(sys.modules[__name__], dao)(self._fileName)
+            instance = dao(self._fileName)
+            ext = os.path.basename(self._fileName).split('.')[1]
+            if ext in instance.getCompatibleFileTypes():
+                 self._dao = instance
+                 break
 
     def getFileName(self):
         return self._fileName
 
-    def createTable(self, tableName):
+    def createTable(self, tableName: str):
         self._tableName = tableName
-        self.table = Table(self._tableName)
-        self.pageFromStarFile.fillTable(self.table)
+        table = Table(tableName)
+        self._dao.fillTable(table)
+        return table
 
-    def getPage(self, tableName, pageNumber, pageSize):
-        if tableName != self._tableName:
-            self._tableName = tableName
-            self.createTable(tableName)
-        self.page = Page(self.table, pageNumber=pageNumber, pageSize=pageSize)
-        self.pageFromStarFile.fillPage(self.page)
+    @timedLRUCache(300)
+    def getPage(self, tableName: str, pageNumber: int, pageSize: int):
+        if tableName not in self._tables:
+            table = self.createTable(tableName)
+            self._tables[tableName] = table
+        else:
+            table = self._tables[tableName]
+        self.page = Page(table, pageNumber=pageNumber, pageSize=pageSize)
+        self._dao.fillPage(self.page)
         return self.page
 
     def getTableNames(self):
-        return self.pageFromStarFile.getTableNames()
+        return self._dao.getTableNames()
 
-    def getTableRowCount(self, tableName):
-        return self.pageFromStarFile.getTableRowCount(tableName)
+    def getTableRowCount(self, tableName: str):
+        return self._dao.getTableRowCount(tableName)
 
-    def getNextPage(self, pageNumber):
+    def getNextPage(self, pageNumber: int):
         self._pageNumber = pageNumber
-        self.page.clear()
         return self.getPage(self._tableName, self._pageNumber, self._pageSize)
 
-    def getRows(self, pageSize):
+    def getRows(self, pageNumber: int, pageSize: int):
+        self._pageNumber = pageNumber
         self._pageSize = pageSize
-        self.page.clear()
-        return self.getPage(self._tableName, self._pageNumber, self._pageSize)
+        return self.getPage(self._tableName, self._pageNumber, self._pageSize).getRows()
 
-    def getTable(self, tableName):
+    def getTable(self, tableName: str):
         if tableName != self._tableName:
             self.page.getTable().clear()
             self.page.clear()

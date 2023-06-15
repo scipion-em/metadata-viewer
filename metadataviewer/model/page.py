@@ -50,6 +50,18 @@ class Column:
         return self.__cmp__(other)
 
 
+class Row:
+    def __init__(self, id, values):
+        self._id = id
+        self._values = values
+
+    def getId(self):
+        return self._id
+
+    def getValues(self):
+        return self._values
+
+
 class Table:
     def __init__(self, name, columns=None):
         self._name = name
@@ -100,7 +112,7 @@ class Page:
         return self._rows
 
     def addRow(self, row):
-        self._rows.append(row)
+        self._rows.append(Row(row[0], row[1]))
 
     def getSize(self):
         return len(self._rows)
@@ -109,8 +121,14 @@ class Page:
         """Return the page size"""
         return self._pageSize
 
+    def setPageSize(self, pageSize):
+        self._pageSize = pageSize
+
     def getPageNumber(self):
         return self._pageNumber
+
+    def setPageNumber(self, pageNumber):
+        self._pageNumber = pageNumber
 
     def getFirstPageRow(self):
         return self._pageSize * self._pageNumber
