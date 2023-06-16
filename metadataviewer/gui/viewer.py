@@ -209,7 +209,8 @@ class MetadataTable(QMainWindow):
         self._actualColumn = None
         self._orderAsc = True
         self.page = self.objecManager.getPage(self.tableNames[0], self._pageNumber,
-                                              self._pageSize)
+                                              self._pageSize,
+                                              self._actualColumn,  self._orderAsc)
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
         self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 700, 300)
@@ -253,7 +254,8 @@ class MetadataTable(QMainWindow):
         self.table.horizontalHeaderItem(column).setIcon(icon)
         self.objecManager.sort(self._tableName, column, self._orderAsc)
         self.table.setRowCount(0)
-        self.page = self.objecManager.getPage(self._tableName, 1,  self._pageSize)
+        self.page = self.objecManager.getPage(self._tableName, 1,  self._pageSize,
+                                              self._actualColumn,  self._orderAsc)
         self._fillTable()
 
     def _createHeader(self):
@@ -286,9 +288,7 @@ class MetadataTable(QMainWindow):
             if row % 2 == 0:
                 color = QColor(255, 255, 255)
             if rowValues.getValues():
-                item = QTableWidgetItem(str(rowValues.getId()))
-                item.setTextAlignment(Qt.AlignCenter)
-                self.table.setItem(activeRow + row, 0, item)
+
                 values = rowValues.getValues()
                 for col in range(columnsCount):
                     item = QTableWidgetItem(str(values[col]))
@@ -320,7 +320,8 @@ class MetadataTable(QMainWindow):
             self.page.setPageNumber(int(currentValue / pageSize) + 1)  # next or previous page
             pageNumber = self.page.getPageNumber()
             page = self.objecManager.getPage(self._tableName, pageNumber,
-                                             pageSize)
+                                             pageSize, self._actualColumn,
+                                             self._orderAsc)
             rows = page.getRows()
             if rows:
                 self._addRows(rows, currentValue)
@@ -342,7 +343,7 @@ class MetadataTable(QMainWindow):
         self.newAction.setIcon(QIcon("../resources/folder.png"))
 
         self.exitAction = QAction(self)
-        self.exitAction.setText("&Exit")
+        self.exitAction.setText("E&xit")
         self.exitAction.setShortcut(QKeySequence("Ctrl+X"))
         self.exitAction.setIcon(QIcon("../resources/exit.png"))
         self.exitAction.triggered.connect(sys.exit)
@@ -355,7 +356,6 @@ class MetadataTable(QMainWindow):
 
 
         # Toolbar action
-
         self.goto_table_action = QAction("Go to TABLE view", self)
         self.goto_table_action.setIcon(QIcon("../resources/table-view.png"))
         self.goto_table_action.setEnabled(False)
@@ -398,7 +398,6 @@ class MetadataTable(QMainWindow):
         helpMenu = QMenu("&Help", self)
         menu_bar.addMenu(helpMenu)
 
-
         self.setMenuBar(menu_bar)
 
     def _createToolBars(self, pageNumber=1, pageSize=100):
@@ -422,31 +421,6 @@ class MetadataTable(QMainWindow):
         self.bockTableName.activated.connect(self.selectTable)
         toolBar.addWidget(self.bockTableName)
 
-        # # Adding a label to the pageNumber toolbar
-        # self.pageNumberLabel = QLabel('\tPage')
-        # toolBar.addWidget(self.pageNumberLabel)
-        # # Adding a SpinBox to the pageNumber toolbar
-        # self.pageNumberSpinBox = QSpinBox()
-        # self.pageNumberSpinBox.setFocusPolicy(Qt.NoFocus)
-        # self.pageNumberSpinBox.setValue(pageNumber)
-        # self.pageNumberSpinBox.setFixedWidth(70)
-        # self.pageNumberSpinBox.setAlignment(Qt.AlignRight)
-        # self.pageNumberSpinBox.valueChanged.connect(self.changePage)
-        # toolBar.addWidget(self.pageNumberSpinBox)
-        #
-        # # Adding a label to the pageSize toolbar
-        # self.pageSizeLabel = QLabel('\tRows')
-        # toolBar.addWidget(self.pageSizeLabel)
-        # # Adding a SpinBox to the pageNumber toolbar
-        # self.pageSizeSpinBox = QSpinBox()
-        # self.pageSizeSpinBox.setMaximum(4000000)
-        # self.pageSizeSpinBox.setFocusPolicy(Qt.NoFocus)
-        # self.pageSizeSpinBox.setValue(pageSize)
-        # self.pageSizeSpinBox.setFixedWidth(70)
-        # self.pageSizeSpinBox.setAlignment(Qt.AlignRight)
-        # self.pageSizeSpinBox.valueChanged.connect(self.changeNumberOfRows)
-        # toolBar.addWidget(self.pageSizeSpinBox)
-
     def toggleColumn(self, table_view, column):
         self.table.setColumnHidden(column,
                                    not table_view.isColumnHidden(column))
@@ -455,22 +429,18 @@ class MetadataTable(QMainWindow):
         self.table.setRowCount(0)
         self._tableName = self.bockTableName.currentText()
         self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
+        self._actualColumn = 1
+        self._orderAsc = True
         self.page = self.objecManager.getPage(self._tableName,
-                                              self._pageNumber, self._pageSize)
+                                              self._pageNumber, self._pageSize,
+                                              self._actualColumn,
+                                              self._orderAsc)
         if self.page:
             self._createHeader()
             self._fillTable()
             self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
             self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
             self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
-
-    def changePage(self):
-        self.page = self.objecManager.getNextPage(self.pageNumberSpinBox.value())
-        self._fillTable()
-
-    def changeNumberOfRows(self):
-        self.page = self.objecManager.getRows(self.pageSizeSpinBox.value())
-        self._fillTable()
 
 
 def main(fileName):
