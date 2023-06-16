@@ -24,34 +24,55 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os.path
+from functools import lru_cache
 
+from PIL import Image
 from abc import abstractmethod
-from metadataviewer.model import Page, Table
 
 
-class IDAO:
+class IRenderer:
 
     @abstractmethod
-    def __init__(self, filename: str):
+    def _render(self, value):
         pass
 
-    @abstractmethod
-    def fillPage(self, page: Page) -> None:
-       pass
+    def render(self, value):
+        try:
+            return self._render(value)
+        except Exception as e:
+            print(e)
+            return str(value)
 
-    @abstractmethod
-    def fillTable(self, table: Table) -> None:
-        pass
 
-    @abstractmethod
-    def getTableNames(self) -> list:
-        pass
+class StrRenderer(IRenderer):
 
-    @abstractmethod
-    def sort(self, tableName, column, reverse=True) -> None:
-        pass
+    def _render(self, value):
+        return str(value)
 
-    @staticmethod
-    @abstractmethod
-    def getCompatibleFileTypes() -> list:
-        pass
+
+class IntRenderer(IRenderer):
+
+    def _render(self, value):
+        return int(value)
+
+
+class FloatRenderer(IRenderer):
+
+    def __init__(self, decimalNumber : int = 4):
+        self._decimalNumber = decimalNumber
+
+    def _render(self, value):
+        return round(float(value), self._decimalNumber)
+
+    def setDecimalNumber(self, decimalNumber):
+        self._decimalNumber = decimalNumber
+
+
+class ImageRenderer(IRenderer):
+    @lru_cache
+    def _render(self, value):
+        path = os.path.abspath(value)
+        image = Image.open(path)
+        image.thumbnail((70, 70))
+        return image

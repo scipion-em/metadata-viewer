@@ -38,6 +38,7 @@ class StarFile(IDAO):
         self._tableData = {}
         self._labels = {}
         self._names = []
+        self._labelsTypes = {}
 
     def __loadFile(self, inputFile):
         return open(inputFile, 'r')
@@ -73,8 +74,9 @@ class StarFile(IDAO):
                     self._names.append(tn)
                     data = self._getData()
                     self._tableCount[tn] = data[0]
-                    self._labels[tn] = data[1]
-                    self._tableData[tn] = data[2]
+                    self._labels[tn] = ['id'] + data[1]
+                    self._labelsTypes[tn] = data[2]
+                    self._tableData[tn] = data[3]
                 line = f.readline()
 
         return list(self._names)
@@ -82,15 +84,21 @@ class StarFile(IDAO):
     def _getData(self):
         """ Method to get all information of the table"""
         self._findLabelLine()
-        data = {}
+        data = []
         line, labels = self._getLabels()
         count = 0
         f = self._file
+        firstRow = line.split()
+        labelsTypes = [int]
+        for i in range(len(firstRow)):
+            labelsTypes.append(_guessType(firstRow[i]))
+
         while line and not line.startswith('\n'):
-            data[count] = line
+            line = str(count+1) + ' ' + line
+            data.append(line.split())
             count += 1
             line = f.readline().strip()
-        return count, labels, data
+        return count, labels, labelsTypes, data
 
     def _getLabels(self):
         line = self._line
@@ -107,7 +115,7 @@ class StarFile(IDAO):
 
     def _loadStarFileInfo(self, table):
         colNames = self._labels[table.getName()]
-        values = self._tableData[table.getName()][0].split()
+        values = self._tableData[table.getName()][0]
         table.createColumns(colNames, values)
 
     def _findLabelLine(self):
@@ -129,15 +137,15 @@ class StarFile(IDAO):
     def _iterRowLines(self, tableName, pageNumber, pageSize):
         # moving to the first row of the page
         firstRow = pageNumber * pageSize - pageSize
-        endRow = pageNumber * pageSize + 30  # getting 30 rows more
+        endRow = pageNumber * pageSize + 10  # getting 30 rows more
         if self._tableCount[tableName] == 1:
-            yield 1, self._tableData[tableName][0].strip().split()
+            yield 1, self._tableData[tableName][0]
             return
-        if firstRow + pageSize + 30 > self._tableCount[tableName]:
+        if firstRow + pageSize + 10 > self._tableCount[tableName]:
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
-            values = self._tableData[tableName][i].strip()
-            yield i+1, values.split()
+            values = self._tableData[tableName][i]
+            yield i+1, values
 
     def close(self):
         if getattr(self, '_file', None):
@@ -146,3 +154,30 @@ class StarFile(IDAO):
 
     def getCompatibleFileTypes(self):
         return ['star', 'xmd']
+
+    def sort(self, tableName, column, reverse=True):
+        """ Sort the table in place using the provided key.
+            :param key is a string, it should be the name of one column. """
+        _columType = self._labelsTypes[tableName][column]
+        orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
+                           reverse=reverse)
+        self._tableData[tableName] = orderList
+
+# -----------------------------------Utils methods -----------------------
+
+
+def _guessType(strValue):
+    try:
+        int(strValue)
+        return int
+    except ValueError:
+        try:
+            float(strValue)
+            return float
+        except ValueError:
+            return str
+
+
+
+
+

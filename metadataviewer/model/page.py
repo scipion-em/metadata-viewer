@@ -24,27 +24,26 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+from .renderers import StrRenderer
+
 
 class Column:
-    def __init__(self, name, type=None):
+    def __init__(self, name, renderer=None):
         self._name = name
-        self._type = type or str
+        self._renderer = renderer or StrRenderer
 
     def getName(self):
         return self._name
 
-    def getType(self):
-        return self._type
-
-    def setType(self, colType):
-        self._type = colType
+    def getRenderer(self):
+        return self._renderer
 
     def __str__(self):
-        return 'Column: %s (type: %s)' % (self._name, self._type)
+        return 'Column: %s (type: %s)' % (self._name, self._renderer)
 
     def __cmp__(self, other):
         return (self.getName() == other.getName()
-                and self.getType() == other.getType())
+                and self.getRenderer() == other.getRenderer())
 
     def __eq__(self, other):
         return self.__cmp__(other)
@@ -87,7 +86,7 @@ class Table:
                        the data type
         """
         for i in range(len(columns)):
-            self.addColumn(Column(columns[i], _guessType(values[i])))
+            self.addColumn(Column(columns[i], _guessRender(values[i])))
 
     def clear(self):
         """ Remove all columns """
@@ -146,6 +145,26 @@ class Page:
 
 
 # --------- Helper functions  ------------------------
+
+def _guessRender(strValue):
+    from .renderers import IntRenderer, FloatRenderer, ImageRenderer, StrRenderer
+    try:
+        renderer = IntRenderer()
+        renderer._render(strValue)
+        return renderer
+    except ValueError:
+        try:
+            renderer = FloatRenderer()
+            renderer._render(strValue)
+            return FloatRenderer()
+        except ValueError:
+            try:
+                renderer = ImageRenderer()
+                renderer._render(strValue)
+                return renderer
+            except Exception:
+                return StrRenderer()
+
 
 def _guessType(strValue):
     try:

@@ -25,10 +25,10 @@
 # *
 # **************************************************************************
 import os
+from functools import lru_cache
 
 from metadataviewer.dao import StarFile
 from metadataviewer.model import Table, Page
-from .utils import timedLRUCache
 
 
 class ObjectManager:
@@ -38,7 +38,9 @@ class ObjectManager:
         self._pageNumber = 1
         self._pageSize = 100
         self._registeredDAO = []
+        self._registeredRenderers = []
         self.__registerterOwnDAOs()
+        self._dao = None
 
     def __registerterOwnDAOs(self):
         self.registerDAO(StarFile)
@@ -58,6 +60,11 @@ class ObjectManager:
                  self._dao = instance
                  break
 
+        return self._dao
+
+    def getDAO(self):
+        return self._dao
+
     def getFileName(self):
         return self._fileName
 
@@ -67,8 +74,17 @@ class ObjectManager:
         self._dao.fillTable(table)
         return table
 
-    @timedLRUCache(300)
-    def getPage(self, tableName: str, pageNumber: int, pageSize: int):
+    @lru_cache
+    def getPage(self, tableName: str, pageNumber: int, pageSize: int,
+                actualColumn = 0,  orderAsc = True):
+        """
+        Method to retrieve a specific page from the tableName
+        :param tableName: name of the table(block) in the file
+        :param pageNumber: page number
+        :param pageSize: page size
+        :param actualColumn: this parameter is used by the cache
+        :param orderAsc: this parameter is used by the cache
+        """
         if tableName not in self._tables:
             table = self.createTable(tableName)
             self._tables[tableName] = table
@@ -88,17 +104,15 @@ class ObjectManager:
         self._pageNumber = pageNumber
         return self.getPage(self._tableName, self._pageNumber, self._pageSize)
 
-    def getRows(self, pageNumber: int, pageSize: int):
-        self._pageNumber = pageNumber
-        self._pageSize = pageSize
-        return self.getPage(self._tableName, self._pageNumber, self._pageSize).getRows()
-
     def getTable(self, tableName: str):
         if tableName != self._tableName:
             self.page.getTable().clear()
             self.page.clear()
             return self.getPage(tableName, self._pageNumber, self._pageSize)
         return None
+
+    def sort(self, tableName, column, reverse=True):
+        self._dao.sort(tableName, column, reverse)
 
 
 

@@ -24,34 +24,3 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-from abc import abstractmethod
-from metadataviewer.model import Page, Table
-
-
-class IDAO:
-
-    @abstractmethod
-    def __init__(self, filename: str):
-        pass
-
-    @abstractmethod
-    def fillPage(self, page: Page) -> None:
-       pass
-
-    @abstractmethod
-    def fillTable(self, table: Table) -> None:
-        pass
-
-    @abstractmethod
-    def getTableNames(self) -> list:
-        pass
-
-    @abstractmethod
-    def sort(self, tableName, column, reverse=True) -> None:
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def getCompatibleFileTypes() -> list:
-        pass

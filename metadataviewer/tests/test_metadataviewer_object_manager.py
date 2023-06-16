@@ -25,33 +25,18 @@
 # *
 # **************************************************************************
 
-from abc import abstractmethod
-from metadataviewer.model import Page, Table
+import unittest
+from metadataviewer.model.object_manager import ObjectManager
 
 
-class IDAO:
+class TestObjectManager(unittest.TestCase):
 
-    @abstractmethod
-    def __init__(self, filename: str):
-        pass
-
-    @abstractmethod
-    def fillPage(self, page: Page) -> None:
-       pass
-
-    @abstractmethod
-    def fillTable(self, table: Table) -> None:
-        pass
-
-    @abstractmethod
-    def getTableNames(self) -> list:
-        pass
-
-    @abstractmethod
-    def sort(self, tableName, column, reverse=True) -> None:
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def getCompatibleFileTypes() -> list:
-        pass
+    def testObjectManager(self):
+        objectManager = ObjectManager('datasets/output_particle.star')
+        dao = objectManager.selectDAO()
+        self.assertIsNotNone(dao)
+        objectManager.getTableNames()
+        table = objectManager.createTable('particles')
+        self.assertIsNotNone(dao)
+        self.assertEqual(table.getSize(), 15)
+        dao.close()
