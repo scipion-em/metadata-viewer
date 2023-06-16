@@ -137,11 +137,11 @@ class StarFile(IDAO):
     def _iterRowLines(self, tableName, pageNumber, pageSize):
         # moving to the first row of the page
         firstRow = pageNumber * pageSize - pageSize
-        endRow = pageNumber * pageSize + 30  # getting 30 rows more
+        endRow = pageNumber * pageSize + 10  # getting 30 rows more
         if self._tableCount[tableName] == 1:
             yield 1, self._tableData[tableName][0]
             return
-        if firstRow + pageSize + 30 > self._tableCount[tableName]:
+        if firstRow + pageSize + 10 > self._tableCount[tableName]:
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
             values = self._tableData[tableName][i]

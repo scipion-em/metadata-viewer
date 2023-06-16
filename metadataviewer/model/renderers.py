@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
 # * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
-# *          Pablo Conesa Mingo         (pconesa@cnb.csic.es)
+# *
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -24,26 +24,55 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import os.path
+from functools import lru_cache
 
-import unittest
-from metadataviewer.dao import *
-from metadataviewer.model import Table, Page
-
-
-class TestStarFile(unittest.TestCase):
-
-    def testCreatePageColumns(self):
-        pageFromStarFile = StarFile('../datasets/output_particle.star')
-        table = Table('particles')
-        tableNames = pageFromStarFile.getTableNames()
-        self.assertEqual(len(tableNames), 2)
-        pageFromStarFile.fillTable(table)
-        self.assertEqual(len(table.getColumns()), 15)
-        page = Page(table, pageNumber=2, pageSize=10)
-        pageFromStarFile.fillPage(page)
-        self.assertEqual(page.getSize(), 40)
-        pageFromStarFile.close()
+from PIL import Image
+from abc import abstractmethod
 
 
+class IRenderer:
+
+    @abstractmethod
+    def _render(self, value):
+        pass
+
+    def render(self, value):
+        try:
+            return self._render(value)
+        except Exception as e:
+            print(e)
+            return str(value)
 
 
+class StrRenderer(IRenderer):
+
+    def _render(self, value):
+        return str(value)
+
+
+class IntRenderer(IRenderer):
+
+    def _render(self, value):
+        return int(value)
+
+
+class FloatRenderer(IRenderer):
+
+    def __init__(self, decimalNumber : int = 4):
+        self._decimalNumber = decimalNumber
+
+    def _render(self, value):
+        return round(float(value), self._decimalNumber)
+
+    def setDecimalNumber(self, decimalNumber):
+        self._decimalNumber = decimalNumber
+
+
+class ImageRenderer(IRenderer):
+    @lru_cache
+    def _render(self, value):
+        path = os.path.abspath(value)
+        image = Image.open(path)
+        image.thumbnail((70, 70))
+        return image

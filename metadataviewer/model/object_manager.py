@@ -38,7 +38,9 @@ class ObjectManager:
         self._pageNumber = 1
         self._pageSize = 100
         self._registeredDAO = []
+        self._registeredRenderers = []
         self.__registerterOwnDAOs()
+        self._dao = None
 
     def __registerterOwnDAOs(self):
         self.registerDAO(StarFile)
@@ -57,6 +59,11 @@ class ObjectManager:
             if ext in instance.getCompatibleFileTypes():
                  self._dao = instance
                  break
+
+        return self._dao
+
+    def getDAO(self):
+        return self._dao
 
     def getFileName(self):
         return self._fileName

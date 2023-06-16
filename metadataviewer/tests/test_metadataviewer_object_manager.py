@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
 # * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
-# *          Pablo Conesa Mingo         (pconesa@cnb.csic.es)
+# *
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -26,24 +26,17 @@
 # **************************************************************************
 
 import unittest
-from metadataviewer.dao import *
-from metadataviewer.model import Table, Page
+from metadataviewer.model.object_manager import ObjectManager
 
 
-class TestStarFile(unittest.TestCase):
+class TestObjectManager(unittest.TestCase):
 
-    def testCreatePageColumns(self):
-        pageFromStarFile = StarFile('../datasets/output_particle.star')
-        table = Table('particles')
-        tableNames = pageFromStarFile.getTableNames()
-        self.assertEqual(len(tableNames), 2)
-        pageFromStarFile.fillTable(table)
-        self.assertEqual(len(table.getColumns()), 15)
-        page = Page(table, pageNumber=2, pageSize=10)
-        pageFromStarFile.fillPage(page)
-        self.assertEqual(page.getSize(), 40)
-        pageFromStarFile.close()
-
-
-
-
+    def testObjectManager(self):
+        objectManager = ObjectManager('datasets/output_particle.star')
+        dao = objectManager.selectDAO()
+        self.assertIsNotNone(dao)
+        objectManager.getTableNames()
+        table = objectManager.createTable('particles')
+        self.assertIsNotNone(dao)
+        self.assertEqual(table.getSize(), 15)
+        dao.close()
