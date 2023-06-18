@@ -29,18 +29,18 @@ import sys
 
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QKeySequence, QColor, QPixmap, QImage
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QMenu,
-                             QAction, QDialog, QVBoxLayout, QWidget,
+from PyQt5.QtGui import QIcon, QKeySequence, QColor, QPixmap
+from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QMenu, QLabel,
+                             QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
-                             QHBoxLayout, QTableWidgetItem, QLabel,
-                             QComboBox, QPushButton, QStatusBar, QScrollBar,
-                             QAbstractItemView)
+                             QHBoxLayout, QTableWidgetItem, QComboBox,
+                             QStatusBar, QAbstractItemView)
 
 from metadataviewer.model.object_manager import ObjectManager
 
 
 class ColumnPropertiesTable(QDialog):
+    """ Class to handler the columns properties(visible, render, edit) """
     def __init__(self, parent, table):
         super().__init__()
         self.parent = parent
@@ -235,7 +235,9 @@ class MetadataTable(QMainWindow):
         self._tableName = self.tableNames[0]
         self.objecManager.createTable(self._tableName)
         self._pageNumber = 1
-        self._pageSize = 10
+        self._pageSize = 30
+        self._seekPageRow = 0
+        self._oldSeekPageRow = -1
         self._actualColumn = None
         self._orderAsc = True
         self.page = self.objecManager.getPage(self.tableNames[0], self._pageNumber,
@@ -249,7 +251,7 @@ class MetadataTable(QMainWindow):
         self.table.horizontalHeader().sortIndicatorOrder()
         self._createActions()
         self._createMenuBar()
-        self._createToolBars(1, 100)
+        self._createToolBars()
         self._createStatusBar()
         self._createTable()
 
@@ -280,8 +282,7 @@ class MetadataTable(QMainWindow):
         if oldColumn is not None:
             self.table.horizontalHeaderItem(oldColumn).setIcon(QIcon(None))
 
-        icon = QIcon('resources/up-arrow.png') if self._orderAsc else QIcon(
-            'resources/down-arrow.png')
+        icon = QIcon('resources/up-arrow.png') if self._orderAsc else QIcon('resources/down-arrow.png')
         self.table.horizontalHeaderItem(column).setIcon(icon)
         self.objecManager.sort(self._tableName, column, self._orderAsc)
         self.table.setRowCount(0)
@@ -309,6 +310,7 @@ class MetadataTable(QMainWindow):
         self.table.setItemPrototype(prototype_item)
 
         # Inserting rows into the table
+        self._seekPageRow = 0
         self._addRows(rows, 0)
         self.table.resizeColumnsToContents()
         self.table.resizeRowsToContents()
@@ -316,53 +318,70 @@ class MetadataTable(QMainWindow):
         self.setCentralWidget(self.table)
         self.scrollBar = CustomScrollBar(self.table)
         self.table.setVerticalScrollBar(self.scrollBar)
-        self.scrollBar.valueChanged.connect(lambda: self._loadRows())
+        self.scrollBar.valueChanged.connect(lambda: self._loadPage())
 
-    def _addRows(self, rows, activeRow):
+    def _calculateVisibleRows(self):
+        viewportHeight = self.table.viewport().height()
+        rowHeight = self.table.rowHeight(0)  # row height
+
+        visibleRows = viewportHeight // rowHeight
+        return visibleRows
+
+    def resizeEvent(self, event):
+        self._loadPage()
+
+    def _addRows(self, rows, activeTableRow):
         columnsCount = len(rows[0].getValues())
-        for row, rowValues in enumerate(rows):
-            color = QColor(245, 245, 220)
+        visibleRows = self._calculateVisibleRows()
+
+        row = 0
+        rowsLen = len(rows)
+        while row + self._seekPageRow < rowsLen and row <= visibleRows:
+            color =  QColor(245, 245, 220)
             if row % 2 == 0:
                 color = QColor(255, 255, 255)
+            rowValues = rows[row + self._seekPageRow]
             if rowValues.getValues():
                 values = rowValues.getValues()
                 for col in range(columnsCount):
                     item = self._columns[col].getRenderer().render(values[col])
                     widget = CustomWidget(item)
-                    # widget.setBackground()
-                    self.table.setCellWidget(activeRow + row, col, widget)
+                    self.table.setCellWidget(row + activeTableRow, col, widget)
+            row += 1
 
-    def mouseWheelEvent(self, event):
-        # Handle the mouse wheel event
-        step = 1
-        delta = event.angleDelta().y() / 120  # Number of mouse wheel steps
-
-        # If moved up, decreases the value of scroll
-        if delta > 0:
-            self.scrollBar.setValue(self.scrollBar.value() - step)
-        # If it moves down, it increases the scroll value.
-        elif delta < 0:
-            self.scrollBar.setValue(self.scrollBar.value() + step)
-
-        event.accept()
-
-    def _loadRows(self):
+    def _loadPage(self):
         # getting current value
         scrollBar = self.scrollBar
         currentValue = scrollBar.value()
         pageSize = self.page.getPageSize()
+        pageNumber = self.page.getPageNumber()
 
-        if currentValue % pageSize == 0:
-            self.page.setPageNumber(int(currentValue / pageSize) + 1)  # next or previous page
-            pageNumber = self.page.getPageNumber()
-            page = self.objecManager.getPage(self._tableName, pageNumber,
+        if currentValue and  currentValue % pageSize == 0:
+            if self._oldSeekPageRow < currentValue:
+                pageNumber += 1
+                self._seekPageRow = 0
+            elif self._oldSeekPageRow > currentValue:
+                pageNumber -= 1
+                self._seekPageRow = pageSize
+
+            self.page = self.objecManager.getPage(self._tableName, pageNumber,
                                              pageSize, self._actualColumn,
                                              self._orderAsc)
-            rows = page.getRows()
-            if rows:
-                self._addRows(rows, currentValue)
-                self.table.resizeColumnsToContents()
-                self.table.resizeRowsToContents()
+
+        else:
+            if self._oldSeekPageRow < currentValue:
+                self._seekPageRow += 1
+            elif self._oldSeekPageRow > currentValue:
+                self._seekPageRow -= 1
+                if self._seekPageRow < 0:
+                    self._seekPageRow = 0
+
+        rows = self.page.getRows()
+        self._oldSeekPageRow = currentValue
+        self._addRows(rows, currentValue)
+        self.table.resizeColumnsToContents()
+        self.table.resizeRowsToContents()
+
 
     def _createStatusBar(self):
         self.statusbar = QStatusBar()
@@ -410,7 +429,6 @@ class MetadataTable(QMainWindow):
         self.goto_gallery_action.setEnabled(False)
         self.goto_table_action.setEnabled(True)
 
-
     def _createMenuBar(self):
         # Creating the menu
         menu_bar = QMenuBar(self)
@@ -437,7 +455,7 @@ class MetadataTable(QMainWindow):
 
         self.setMenuBar(menu_bar)
 
-    def _createToolBars(self, pageNumber=1, pageSize=100):
+    def _createToolBars(self):
         # Using a title
         toolBar = self.addToolBar("")
         toolBar.addAction(self.goto_table_action)
@@ -468,10 +486,8 @@ class MetadataTable(QMainWindow):
         self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
         self._actualColumn = 1
         self._orderAsc = True
-        self.page = self.objecManager.getPage(self._tableName,
-                                              self._pageNumber, self._pageSize,
-                                              self._actualColumn,
-                                              self._orderAsc)
+        self.page = self.objecManager.getPage(self._tableName, 1, self._pageSize,
+                                              self._actualColumn, self._orderAsc)
         if self.page:
             self._createHeader()
             self._fillTable()
