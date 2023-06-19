@@ -38,6 +38,9 @@ class Column:
     def getRenderer(self):
         return self._renderer
 
+    def setRenderer(self, renderer):
+        self._renderer = renderer
+
     def __str__(self):
         return 'Column: %s (type: %s)' % (self._name, self._renderer)
 

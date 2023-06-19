@@ -50,12 +50,17 @@ class StrRenderer(IRenderer):
     def _render(self, value):
         return str(value)
 
+    def renderType(self):
+        return str
+
 
 class IntRenderer(IRenderer):
 
     def _render(self, value):
         return int(value)
 
+    def renderType(self):
+        return int
 
 class FloatRenderer(IRenderer):
 
@@ -68,6 +73,9 @@ class FloatRenderer(IRenderer):
     def setDecimalNumber(self, decimalNumber):
         self._decimalNumber = decimalNumber
 
+    def renderType(self):
+        return float
+
 
 class ImageRenderer(IRenderer):
     @lru_cache
@@ -76,3 +84,6 @@ class ImageRenderer(IRenderer):
         image = Image.open(path)
         image.thumbnail((70, 70))
         return image
+
+    def renderType(self):
+        return Image
