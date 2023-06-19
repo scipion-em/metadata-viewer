@@ -237,6 +237,8 @@ class TableView(QTableWidget):
         self._actualColumn = None
         self._orderAsc = True
         self.objecManager = objectManager
+        self.sortTriggered = False
+        self.horizontalHeader().sectionClicked.connect(self.orderByColumn)
 
     def _createTable(self, tableName):
         # Creating the table
@@ -260,7 +262,6 @@ class TableView(QTableWidget):
         self._createHeader()
         self._fillTable()
         self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
-        self.horizontalHeader().sectionClicked.connect(self.orderByColumn)
         self.setVerticalScrollBar(self.scrollBar)
         self.scrollBar.valueChanged.connect(lambda: self._loadPage())
 
