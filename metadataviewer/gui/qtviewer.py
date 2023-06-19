@@ -24,13 +24,15 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import argparse
 import os.path
 import sys
 
+from PIL import Image
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QColor, QPixmap
-from PyQt5.QtWidgets import (QApplication, QMainWindow, QMenuBar, QMenu, QLabel,
+from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
@@ -86,10 +88,15 @@ class ColumnPropertiesTable(QDialog):
                 tableHeaderList.append('')
 
         for i in range(self.numRow):
+            # checking visible column
             if self.columns[i].getName() in tableHeaderList:
                 self.visibleCheckBoxList[i].setChecked(True)
             else:
                self.visibleCheckBoxList[i].setChecked(False)
+
+            # checking render column
+            if self.columns[i].getRenderer().renderType() == Image:
+                self.renderCheckBoxList[i].setChecked(True)
 
             visibleCheckbox = self._createCellWidget(self.visibleCheckBoxList[i])
             renderCheckbox = self._createCellWidget(self.renderCheckBoxList[i])
@@ -122,6 +129,7 @@ class ColumnPropertiesTable(QDialog):
             ckbox = QCheckBox()
             ckbox1 = QCheckBox()
             ckbox2 = QCheckBox()
+            ckbox2.setEnabled(False)
             self.visibleCheckBoxList.append(ckbox)
             self.renderCheckBoxList.append(ckbox1)
             self.editCheckBoxList.append(ckbox2)
@@ -146,6 +154,9 @@ class ColumnPropertiesTable(QDialog):
         pass
 
     def renderColums(self):
+        # rows = self._table.page.getRows()
+        # currentRow = self._table.scrollBar.value()
+        # self._table._addRows(rows, currentRow)
         pass
 
     def accept(self):
@@ -234,11 +245,14 @@ class TableView(QTableWidget):
         self._pageSize = 30
         self._seekPageRow = 0
         self._oldSeekPageRow = -1
-        self._actualColumn = None
+        self._actualRow = 0
+        self._actualColumn = 0
+        self.oldColumn = None
         self._orderAsc = True
         self.objecManager = objectManager
         self.sortTriggered = False
-        self.horizontalHeader().sectionClicked.connect(self.orderByColumn)
+        self.cellClicked.connect(self.setActualRowColumn)
+        self.horizontalHeader().sectionClicked.connect(self.setActualColumn)
 
     def _createTable(self, tableName):
         # Creating the table
@@ -254,42 +268,42 @@ class TableView(QTableWidget):
 
         self.mainWidget = QWidget()
         self.mainLayout = QVBoxLayout(self.mainWidget)
-        self.verticalHeader().setVisible(False)
+        self.verticalHeader().setVisible(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.scrollBar = CustomScrollBar()
         self._createHeader()
-        self._fillTable()
         self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
+        self._fillTable()
         self.setVerticalScrollBar(self.scrollBar)
         self.scrollBar.valueChanged.connect(lambda: self._loadPage())
+        self.setCurrentCell(0, 0)
 
     def setTableName(self, tableName):
         self._tableName = tableName
 
-    def orderByColumn(self, column):
-        oldColumn = self._actualColumn
-        if column == self._actualColumn:
-            self._orderAsc = not self._orderAsc
-        else:
-            oldColumn = self._actualColumn
+    def orderByColumn(self, column, order):
+        if self._orderAsc != order:
+            self._orderAsc = order
+            if self.oldColumn is not None:
+                self.horizontalHeaderItem(self.oldColumn).setIcon(QIcon(None))
+
+            self.oldColumn = self._actualColumn
             self._actualColumn = column
-            self._orderAsc = True
 
-        self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+            self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+            reverse = not self._orderAsc
+            self.objecManager.sort(self._tableName, column, reverse)
+            self.setRowCount(0)
+            self.scrollBar.setValue(0)
+            self.page = self.objecManager.getPage(self._tableName, 1,  self._pageSize,
+                                                  self._actualColumn, self._orderAsc)
+            self._fillTable()
 
-        if oldColumn is not None:
-            self.horizontalHeaderItem(oldColumn).setIcon(QIcon(None))
-
-        icon = QIcon('resources/up-arrow.png') if self._orderAsc else QIcon('resources/down-arrow.png')
+        icon = QIcon('resources/up-arrow.png') if self._orderAsc else QIcon(
+            'resources/down-arrow.png')
         self.horizontalHeaderItem(column).setIcon(icon)
-        self.objecManager.sort(self._tableName, column, self._orderAsc)
-        self.setRowCount(0)
-        self.scrollBar.setValue(0)
-        self.page = self.objecManager.getPage(self._tableName, 1,  self._pageSize,
-                                              self._actualColumn,  self._orderAsc)
-        self._fillTable()
 
     def _createHeader(self):
         # Creating the header
@@ -336,7 +350,14 @@ class TableView(QTableWidget):
             if rowValues.getValues():
                 values = rowValues.getValues()
                 for col in range(columnsCount):
-                    item = self._columns[col].getRenderer().render(values[col])
+                    if self._columns[col].getRenderer().renderType() != Image:
+                        item = self._columns[col].getRenderer().render(values[col])
+                    else:
+                        if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
+                            item = self._columns[col].getRenderer().render(values[col])
+                        else:
+                           item = values[col]
+
                     widget = CustomWidget(item)
                     self.setCellWidget(row + activeTableRow, col, widget)
             row += 1
@@ -374,19 +395,35 @@ class TableView(QTableWidget):
         self.resizeColumnsToContents()
         self.resizeRowsToContents()
 
+    def getActualColumn(self):
+        return self._actualColumn
 
-class MetadataViewer(QMainWindow):
-    def __init__(self, fileName):
+    def setActualRowColumn(self, row, column):
+        self._actualRow = row
+        self._actualColumn = column
+
+    def setActualColumn(self, column):
+        self._actualColumn = column
+
+
+class QTMetadataViewer(QMainWindow):
+    def __init__(self, args):
         super().__init__()
-        self._fileName = os.path.abspath(fileName)
-        self.objecManager = ObjectManager(fileName)
+        self._fileName = os.path.abspath(args.fileName)
+        self.objecManager = ObjectManager(args.fileName)
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
         self._pageSize = 30
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
-        self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
+        self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 800, 400)
-        self.table = TableView(self.objecManager)
+        self._tableView = args.tableview
+        self._galleryView = args.galleryview
+        if args.tableview:  # Table view
+            self.table = TableView(self.objecManager)
+        else:  # GalleryView
+            self.gallery = None
+
         self.table._createTable(self.tableNames[0])
         self._createActions()
         self._createMenuBar()
@@ -423,25 +460,47 @@ class MetadataViewer(QMainWindow):
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
         self.table.propertiesTableAction.setIcon(QIcon("resources/table.png"))
-
+        if self._galleryView:
+            self.table.propertiesTableAction.setEnabled(False)
 
         # Toolbar action
-        self.goto_table_action = QAction("Go to TABLE view", self)
-        self.goto_table_action.setIcon(QIcon("resources/table-view.png"))
-        self.goto_table_action.setEnabled(False)
-        self.goto_table_action.triggered.connect(self._loadTableView)
+        self.gotoTableAction = QAction("Go to TABLE view", self)
+        self.gotoTableAction.setIcon(QIcon("resources/table-view.png"))
+        self.gotoTableAction.setEnabled(False)
+        self.gotoTableAction.triggered.connect(self._loadTableView)
 
-        self.goto_gallery_action = QAction("Go to GALLERY view", self)
-        self.goto_gallery_action.setIcon(QIcon("resources/gallery.png"))
-        self.goto_gallery_action.triggered.connect(self._loadGalleryView)
+        self.gotoGalleryAction = QAction("Go to GALLERY view", self)
+        self.gotoGalleryAction.setIcon(QIcon("resources/gallery.png"))
+        self.gotoGalleryAction.triggered.connect(self._loadGalleryView)
+
+        # Columns  Toolbar action
+        self.reduceDecimals = QAction("Reduce decimals", self)
+        self.reduceDecimals.setIcon(QIcon("resources/reducedecimals.png"))
+        self.reduceDecimals.setEnabled(False)
+
+        self.increaseDecimals = QAction("Increase decimals", self)
+        self.increaseDecimals.setIcon(QIcon("resources/increasedecimals.png"))
+        self.increaseDecimals.setEnabled(False)
+
+        self.sortUp = QAction("Sort ascending", self)
+        self.sortUp.setIcon(QIcon("resources/up-arrow.png"))
+        self.sortUp.triggered.connect(lambda : self.table.orderByColumn(self.table.getActualColumn(), True))
+
+        self.sortDown = QAction("Sort descending", self)
+        self.sortDown.setIcon(QIcon("resources/down-arrow.png"))
+        self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
 
     def _loadTableView(self):
-        self.goto_table_action.setEnabled(False)
-        self.goto_gallery_action.setEnabled(True)
+        self.gotoGalleryAction.setEnabled(True)
+        self.gotoTableAction.setEnabled(False)
+        self.table.setVisible(True)
+        self.bockTableName.setEnabled(True)
 
     def _loadGalleryView(self):
-        self.goto_gallery_action.setEnabled(False)
-        self.goto_table_action.setEnabled(True)
+        self.gotoTableAction.setEnabled(True)
+        self.gotoGalleryAction.setEnabled(False)
+        self.table.setVisible(False)
+        self.bockTableName.setEnabled(False)
 
     def _createMenuBar(self):
         # Creating the menu
@@ -457,7 +516,8 @@ class MetadataViewer(QMainWindow):
         # Display menu
         displayMenu = QMenu("&Display", self)
         menu_bar.addMenu(displayMenu)
-        displayMenu.addAction(self.table.propertiesTableAction)
+        if self._tableView:
+            displayMenu.addAction(self.table.propertiesTableAction)
 
         # Tools menu
         toolsMenu = QMenu("&Tools", self)
@@ -470,10 +530,10 @@ class MetadataViewer(QMainWindow):
         self.setMenuBar(menu_bar)
 
     def _createToolBars(self):
-        # Using a title
+        # Tool bar
         toolBar = self.addToolBar("")
-        toolBar.addAction(self.goto_table_action)
-        toolBar.addAction(self.goto_gallery_action)
+        toolBar.addAction(self.gotoTableAction)
+        toolBar.addAction(self.gotoGalleryAction)
 
         self.blockLabelIcon = QLabel('\t')
         toolBar.addWidget(self.blockLabelIcon)
@@ -482,13 +542,31 @@ class MetadataViewer(QMainWindow):
         self.blockLabel.setPixmap(icon.pixmap(16, 16))
         self.blockLabel.setToolTip('Blocks')
         toolBar.addWidget(self.blockLabel)
-        self.bockTableName = QComboBox()
-        self.bockTableName.setFixedWidth(200)
-        for tableName in self.tableNames:
-            self.bockTableName.addItem(tableName)
-            # Connect signals to the methods.
-        self.bockTableName.activated.connect(self.selectTable)
-        toolBar.addWidget(self.bockTableName)
+        if self._tableView:
+            self.bockTableName = QComboBox()
+            self.bockTableName.setFixedWidth(200)
+            for tableName in self.tableNames:
+                self.bockTableName.addItem(tableName)
+                # Connect signals to the methods.
+            self.bockTableName.activated.connect(self.selectTable)
+            self.bockTableName.setToolTip('Blocks')
+            toolBar.addWidget(self.bockTableName)
+
+        # Columns tool bar
+        columnsToolBar2 = self.addToolBar("")
+        columnsToolBar2.addAction(self.sortUp)
+        columnsToolBar2.addAction(self.sortDown)
+        columnsToolBar2.addAction(self.reduceDecimals)
+        columnsToolBar2.addAction(self.increaseDecimals)
+        self.zoom = QComboBox()
+        self.zoom.setToolTip('Zoom')
+        self.zoom.setFixedWidth(70)
+        self.zoom.setEnabled(False)
+        zoomValues = ['50%', '75%', '90%', '100%', '125%', '150%', '200%']
+        for zoomValue in zoomValues:
+            self.zoom.addItem(zoomValue)
+        self.zoom.setCurrentIndex(3)
+        columnsToolBar2.addWidget(self.zoom)
 
     def toggleColumn(self, table_view, column):
         self.table.setColumnHidden(column,
@@ -497,19 +575,11 @@ class MetadataViewer(QMainWindow):
     def selectTable(self):
         self.table.setRowCount(0)
         tableName = self.bockTableName.currentText()
-        page = self.objecManager.getPage(tableName, 1, self._pageSize, 1,  True)
+        self.table.setActualRowColumn(0, 0)
+        page = self.objecManager.getPage(tableName, 1, self._pageSize, 1, True)
         if page:
             self.table._createTable(tableName)
             self._rowsCount = self.objecManager.getTableRowCount(tableName)
-            self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
+            self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
 
 
-def main(fileName):
-    app = QApplication(sys.argv)
-    window = MetadataViewer(fileName)
-    window.show()
-    sys.exit(app.exec_())
-
-if __name__ == "__main__":
-    fileName = sys.argv[1]
-    main(fileName)
