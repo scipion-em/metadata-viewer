@@ -156,8 +156,8 @@ class ColumnPropertiesTable(QDialog):
 
 
 class CustomScrollBar(QScrollBar):
-    def __init__(self, parent=None):
-        super().__init__(parent)
+    def __init__(self):
+        super().__init__()
         self.setSingleStep(1)
         self.dragging = False
         self.start_value = 0
@@ -225,51 +225,49 @@ class CustomWidget(QWidget):
         self.setLayout(layout)
 
 
-class MetadataTable(QMainWindow):
-    def __init__(self, fileName):
+class TableView(QTableWidget):
+    def __init__(self, objectManager):
         super().__init__()
-        self._fileName = os.path.abspath(fileName)
-        self.objecManager = ObjectManager(fileName)
-        self.objecManager.selectDAO()
-        self.tableNames = self.objecManager.getTableNames()
-        self._tableName = self.tableNames[0]
-        self.objecManager.createTable(self._tableName)
+        self.propertiesTableDialog = ColumnPropertiesTable(self, self)
+        self.horizontalHeader().sortIndicatorOrder()
         self._pageNumber = 1
         self._pageSize = 30
         self._seekPageRow = 0
         self._oldSeekPageRow = -1
         self._actualColumn = None
         self._orderAsc = True
-        self.page = self.objecManager.getPage(self.tableNames[0], self._pageNumber,
-                                              self._pageSize,
-                                              self._actualColumn,  self._orderAsc)
-        self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
-        self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
-        self.setGeometry(100, 100, 700, 300)
-        self.table = QTableWidget()
-        self.propertiesTableDialog = ColumnPropertiesTable(self, self.table)
-        self.table.horizontalHeader().sortIndicatorOrder()
-        self._createActions()
-        self._createMenuBar()
-        self._createToolBars()
-        self._createStatusBar()
-        self._createTable()
+        self.objecManager = objectManager
 
-    def _createTable(self):
+    def _createTable(self, tableName):
         # Creating the table
+        self._tableName = tableName
+        self.objecManager.createTable(self._tableName)
+        self._seekPageRow = 0
+        self.page = self.objecManager.getPage(self._tableName,
+                                              self._pageNumber,
+                                              self._pageSize,
+                                              self._actualColumn,
+                                              self._orderAsc)
+        self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
+
         self.mainWidget = QWidget()
         self.mainLayout = QVBoxLayout(self.mainWidget)
-        self.table.verticalHeader().setVisible(False)
-        self.table.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.table.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
-        self.table.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.verticalHeader().setVisible(False)
+        self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        self.setEditTriggers(QAbstractItemView.NoEditTriggers)
+        self.scrollBar = CustomScrollBar()
         self._createHeader()
         self._fillTable()
         self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
-        self.table.horizontalHeader().sectionClicked.connect(self.orderByColumn)
+        self.horizontalHeader().sectionClicked.connect(self.orderByColumn)
+        self.setVerticalScrollBar(self.scrollBar)
+        self.scrollBar.valueChanged.connect(lambda: self._loadPage())
+
+    def setTableName(self, tableName):
+        self._tableName = tableName
 
     def orderByColumn(self, column):
-        # Alternate ascending and descending order
         oldColumn = self._actualColumn
         if column == self._actualColumn:
             self._orderAsc = not self._orderAsc
@@ -278,14 +276,15 @@ class MetadataTable(QMainWindow):
             self._actualColumn = column
             self._orderAsc = True
 
-        self.table.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+        self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+
         if oldColumn is not None:
-            self.table.horizontalHeaderItem(oldColumn).setIcon(QIcon(None))
+            self.horizontalHeaderItem(oldColumn).setIcon(QIcon(None))
 
         icon = QIcon('resources/up-arrow.png') if self._orderAsc else QIcon('resources/down-arrow.png')
-        self.table.horizontalHeaderItem(column).setIcon(icon)
+        self.horizontalHeaderItem(column).setIcon(icon)
         self.objecManager.sort(self._tableName, column, self._orderAsc)
-        self.table.setRowCount(0)
+        self.setRowCount(0)
         self.scrollBar.setValue(0)
         self.page = self.objecManager.getPage(self._tableName, 1,  self._pageSize,
                                               self._actualColumn,  self._orderAsc)
@@ -294,41 +293,33 @@ class MetadataTable(QMainWindow):
     def _createHeader(self):
         # Creating the header
         self._columns = self.page.getTable().getColumns()
-        self.table.setColumnCount(len(self._columns))
+        self.setColumnCount(len(self._columns))
         for i, column in enumerate(self._columns):
             item = QTableWidgetItem(str(column.getName()))
             item.setTextAlignment(Qt.AlignCenter)
-            self.table.setHorizontalHeaderItem(i, item)
+            self.setHorizontalHeaderItem(i, item)
 
     def _fillTable(self):
         rows = self.page.getRows()
         columns = self.page.getTable().getColumns()
-        self.table.setColumnCount(len(columns))
-        self.table.setRowCount(self._rowsCount)
+        self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
+        self.setColumnCount(len(columns))
+        self.setRowCount(self._rowsCount)
         # Set prototype item to improve loading speed
         prototype_item = QTableWidgetItem()
-        self.table.setItemPrototype(prototype_item)
+        self.setItemPrototype(prototype_item)
 
         # Inserting rows into the table
         self._seekPageRow = 0
         self._addRows(rows, 0)
-        self.table.resizeColumnsToContents()
-        self.table.resizeRowsToContents()
-        self._rowsCount = self.objecManager.getTableRowCount(self.bockTableName.currentText())
-        self.setCentralWidget(self.table)
-        self.scrollBar = CustomScrollBar(self.table)
-        self.table.setVerticalScrollBar(self.scrollBar)
-        self.scrollBar.valueChanged.connect(lambda: self._loadPage())
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
 
     def _calculateVisibleRows(self):
-        viewportHeight = self.table.viewport().height()
-        rowHeight = self.table.rowHeight(0)  # row height
-
+        viewportHeight = self.viewport().height()
+        rowHeight = self.rowHeight(0) if self.rowHeight(0) else 30  # row height (minumum size in case of the table is empty)
         visibleRows = viewportHeight // rowHeight
         return visibleRows
-
-    def resizeEvent(self, event):
-        self._loadPage()
 
     def _addRows(self, rows, activeTableRow):
         columnsCount = len(rows[0].getValues())
@@ -337,7 +328,7 @@ class MetadataTable(QMainWindow):
         row = 0
         rowsLen = len(rows)
         while row + self._seekPageRow < rowsLen and row <= visibleRows:
-            color =  QColor(245, 245, 220)
+            color = QColor(245, 245, 220)
             if row % 2 == 0:
                 color = QColor(255, 255, 255)
             rowValues = rows[row + self._seekPageRow]
@@ -346,7 +337,7 @@ class MetadataTable(QMainWindow):
                 for col in range(columnsCount):
                     item = self._columns[col].getRenderer().render(values[col])
                     widget = CustomWidget(item)
-                    self.table.setCellWidget(row + activeTableRow, col, widget)
+                    self.setCellWidget(row + activeTableRow, col, widget)
             row += 1
 
     def _loadPage(self):
@@ -356,7 +347,7 @@ class MetadataTable(QMainWindow):
         pageSize = self.page.getPageSize()
         pageNumber = self.page.getPageNumber()
 
-        if currentValue and  currentValue % pageSize == 0:
+        if currentValue and currentValue % pageSize == 0:
             if self._oldSeekPageRow < currentValue:
                 pageNumber += 1
                 self._seekPageRow = 0
@@ -379,9 +370,31 @@ class MetadataTable(QMainWindow):
         rows = self.page.getRows()
         self._oldSeekPageRow = currentValue
         self._addRows(rows, currentValue)
-        self.table.resizeColumnsToContents()
-        self.table.resizeRowsToContents()
+        self.resizeColumnsToContents()
+        self.resizeRowsToContents()
 
+
+class MetadataViewer(QMainWindow):
+    def __init__(self, fileName):
+        super().__init__()
+        self._fileName = os.path.abspath(fileName)
+        self.objecManager = ObjectManager(fileName)
+        self.objecManager.selectDAO()
+        self.tableNames = self.objecManager.getTableNames()
+        self._pageSize = 30
+        self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
+        self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
+        self.setGeometry(100, 100, 800, 400)
+        self.table = TableView(self.objecManager)
+        self.table._createTable(self.tableNames[0])
+        self._createActions()
+        self._createMenuBar()
+        self._createToolBars()
+        self._createStatusBar()
+        self.setCentralWidget(self.table)
+
+    def resizeEvent(self, event):
+        self.table._loadPage()
 
     def _createStatusBar(self):
         self.statusbar = QStatusBar()
@@ -405,10 +418,10 @@ class MetadataTable(QMainWindow):
         self.exitAction.triggered.connect(sys.exit)
 
         # Display actions
-        self.propertiesTableAction = QAction("Columns...", self)
-        self.propertiesTableAction.triggered.connect(self.propertiesTableDialog.openTableDialog)
-        self.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
-        self.propertiesTableAction.setIcon(QIcon("resources/table.png"))
+        self.table.propertiesTableAction = QAction("Columns...", self)
+        self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
+        self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
+        self.table.propertiesTableAction.setIcon(QIcon("resources/table.png"))
 
 
         # Toolbar action
@@ -443,7 +456,7 @@ class MetadataTable(QMainWindow):
         # Display menu
         displayMenu = QMenu("&Display", self)
         menu_bar.addMenu(displayMenu)
-        displayMenu.addAction(self.propertiesTableAction)
+        displayMenu.addAction(self.table.propertiesTableAction)
 
         # Tools menu
         toolsMenu = QMenu("&Tools", self)
@@ -482,26 +495,19 @@ class MetadataTable(QMainWindow):
 
     def selectTable(self):
         self.table.setRowCount(0)
-        self._tableName = self.bockTableName.currentText()
-        self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
-        self._actualColumn = 1
-        self._orderAsc = True
-        self.page = self.objecManager.getPage(self._tableName, 1, self._pageSize,
-                                              self._actualColumn, self._orderAsc)
-        if self.page:
-            self._createHeader()
-            self._fillTable()
-            self.propertiesTableDialog.registerColumns(self.page.getTable().getColumns())
-            self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
+        tableName = self.bockTableName.currentText()
+        page = self.objecManager.getPage(tableName, 1, self._pageSize, 1,  True)
+        if page:
+            self.table._createTable(tableName)
+            self._rowsCount = self.objecManager.getTableRowCount(tableName)
             self.setWindowTitle("Metadata: " + os.path.basename(fileName) + " (%s items)" % self._rowsCount)
 
 
 def main(fileName):
     app = QApplication(sys.argv)
-    window = MetadataTable(fileName)
+    window = MetadataViewer(fileName)
     window.show()
     sys.exit(app.exec_())
-
 
 if __name__ == "__main__":
     fileName = sys.argv[1]
