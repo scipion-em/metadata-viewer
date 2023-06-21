@@ -74,7 +74,6 @@ class ObjectManager:
     def getPageNumber(self):
         return self._pageNumber
 
-
     def createTable(self, tableName: str):
         self._tableName = tableName
         table = Table(tableName)

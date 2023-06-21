@@ -33,12 +33,13 @@ from metadataviewer.gui.qtviewer import QTMetadataViewer
 
 QT_VIEWER = 'qtviewer'
 
+
 def defineArgs():
     parser = argparse.ArgumentParser()
     parser.add_argument("fileName", help="File to be displayed by the dataviewer ")
     parser.add_argument("--viewer", help="Select a viewer implementation (qtviewer, tkviewer, terminal)", default=QT_VIEWER)
     parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
-    parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_false", default=False)
+    parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
     return parser
 
 
