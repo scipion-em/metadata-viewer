@@ -68,6 +68,8 @@ class Table:
     def __init__(self, name, columns=None):
         self._name = name
         self._columns = columns or list()
+        self._sortingColumnIndex = -1
+        self._sortingAsc = True
 
     def getName(self):
         return self._name
@@ -77,6 +79,18 @@ class Table:
 
     def getSize(self):
         return len(self._columns)
+
+    def getSortingColumnIndex(self):
+        return self._sortingColumnIndex
+
+    def getSortingAsc(self):
+        return self._sortingAsc
+
+    def setSortingColumnIndex(self, index):
+        self._sortingColumnIndex = index
+
+    def setSortingAsc(self, ascending):
+        self._sortingAsc = ascending
 
     def addColumn(self, column):
         self._columns.append(column)

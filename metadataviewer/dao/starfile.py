@@ -52,8 +52,13 @@ class StarFile(IDAO):
         and data rows.
         """
         tableName = page.getTable().getName()
-        for row in self._iterRowLines(tableName, page.getPageNumber(),
-                                      page.getPageSize()):
+        # moving to the first row of the page
+        pageNumber = page.getPageNumber()
+        pageSize = page.getPageSize()
+        firstRow =  pageNumber * pageSize - pageSize
+        endRow = pageNumber * pageSize  # getting 30 rows more
+
+        for row in self._iterRowLines(tableName, firstRow, endRow):
             if row:
                 page.addRow(row)
 
@@ -134,14 +139,11 @@ class StarFile(IDAO):
         self._line = line.strip()
         self._foundLoop = foundLoop
 
-    def _iterRowLines(self, tableName, pageNumber, pageSize):
-        # moving to the first row of the page
-        firstRow = pageNumber * pageSize - pageSize
-        endRow = pageNumber * pageSize + 30  # getting 30 rows more
+    def _iterRowLines(self, tableName, firstRow, endRow):
         if self._tableCount[tableName] == 1:
             yield 1, self._tableData[tableName][0]
             return
-        if firstRow + pageSize + 30 > self._tableCount[tableName]:
+        if firstRow + endRow > self._tableCount[tableName]:
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
             values = self._tableData[tableName][i]
@@ -157,7 +159,7 @@ class StarFile(IDAO):
 
     def sort(self, tableName, column, reverse=True):
         """ Sort the table in place using the provided key.
-            :param key is a string, it should be the name of one column. """
+            :param column is a string, it should be the name of one column. """
         _columType = self._labelsTypes[tableName][column]
         orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
                            reverse=reverse)
