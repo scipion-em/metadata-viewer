@@ -62,6 +62,7 @@ class IntRenderer(IRenderer):
     def renderType(self):
         return int
 
+
 class FloatRenderer(IRenderer):
 
     def __init__(self, decimalNumber : int = 4):
@@ -75,6 +76,15 @@ class FloatRenderer(IRenderer):
 
     def renderType(self):
         return float
+
+
+class MatrixRender(IRenderer):
+
+    def _render(self, value):
+        return eval(value)
+
+    def renderType(self):
+        return list
 
 
 class ImageRenderer(IRenderer):

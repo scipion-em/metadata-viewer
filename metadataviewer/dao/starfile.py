@@ -30,7 +30,7 @@ from .model import IDAO
 
 class StarFile(IDAO):
     """
-    Class to handle STAR files.
+    Class to handle STAR or XMD files.
     """
     def __init__(self, inputFile):
         self._file = self.__loadFile(inputFile)
@@ -46,17 +46,21 @@ class StarFile(IDAO):
     def fillTable(self, table):
         self._loadStarFileInfo(table)
 
-    def fillPage(self, page):
+    def fillPage(self, page, actualColumn, orderAsc):
         """
-        Read the given table from the start file and parse columns definition
-        and data rows.
+        Fill a page taking into account the page number and size.
+        Variables actualColumn and orderAsc control the table order
         """
-        tableName = page.getTable().getName()
+        table = page.getTable()
+        tableName = table.getName()
+        if table.hasSortingChanged():
+            self.sort(tableName, actualColumn, orderAsc)
+
         # moving to the first row of the page
         pageNumber = page.getPageNumber()
         pageSize = page.getPageSize()
-        firstRow =  pageNumber * pageSize - pageSize
-        endRow = pageNumber * pageSize  # getting 30 rows more
+        firstRow = pageNumber * pageSize - pageSize
+        endRow = pageNumber * pageSize  # getting more rows
 
         for row in self._iterRowLines(tableName, firstRow, endRow):
             if row:
@@ -158,8 +162,8 @@ class StarFile(IDAO):
         return ['star', 'xmd']
 
     def sort(self, tableName, column, reverse=True):
-        """ Sort the table in place using the provided key.
-            :param column is a string, it should be the name of one column. """
+        """ Sort the table in place using the provided column.
+            :param column is a number, it is a index of one column. """
         _columType = self._labelsTypes[tableName][column]
         orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
                            reverse=reverse)

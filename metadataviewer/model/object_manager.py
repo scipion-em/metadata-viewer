@@ -27,7 +27,7 @@
 import os
 from functools import lru_cache
 
-from metadataviewer.dao import StarFile
+from metadataviewer.dao import StarFile, SqliteFile
 from metadataviewer.model import Table, Page
 
 
@@ -36,7 +36,7 @@ class ObjectManager:
         self._fileName = fileName
         self._tables = {}
         self._pageNumber = 1
-        self._pageSize = 100
+        self._pageSize = 50
         self._registeredDAO = []
         self._registeredRenderers = []
         self.__registerterOwnDAOs()
@@ -44,6 +44,7 @@ class ObjectManager:
 
     def __registerterOwnDAOs(self):
         self.registerDAO(StarFile)
+        self.registerDAO(SqliteFile)
 
     def getRegisteredDAO(self):
         return self._registeredDAO
@@ -93,10 +94,12 @@ class ObjectManager:
         """
         table = self.getTable(tableName)
         self.page = Page(table, pageNumber=pageNumber, pageSize=pageSize)
-        self._dao.fillPage(self.page)
+        self._dao.fillPage(self.page, actualColumn, orderAsc)
+        table.setSortingChanged(False)
         return self.page
 
     def getNumberPageFromRow(self, row):
+        """Get the number of the page on wich  the row is located"""
         pageSize = self.getPageSize()
         pageNumber = int((row + 1) / pageSize)
         if (row + 1) % pageSize > 0:
@@ -110,7 +113,7 @@ class ObjectManager:
         pageNumber = self.getNumberPageFromRow(currentRow)
         page = self.getPage(table.getName(), pageNumber, self._pageSize,
                             table.getSortingColumnIndex(),
-                            table.getSortingAsc())
+                            table.isSortingAsc())
         rowPosition = currentRow % self.getPageSize()
         if rowPosition == page.getSize():
             return None
@@ -153,7 +156,7 @@ class ObjectManager:
         table = self.getTable(tableName)
         table.setSortingColumnIndex(column)
         table.setSortingAsc(reverse)
-        self._dao.sort(tableName, column, reverse)
+
 
 
 

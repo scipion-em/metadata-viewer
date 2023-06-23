@@ -30,14 +30,15 @@ import sys
 from PIL import Image
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QKeySequence, QColor, QPixmap
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
-                             QStatusBar, QAbstractItemView, QSizePolicy)
+                             QStatusBar, QAbstractItemView)
 
 from metadataviewer.model.object_manager import ObjectManager
+from .constants import *
 
 
 class ColumnPropertiesTable(QDialog):
@@ -72,10 +73,10 @@ class ColumnPropertiesTable(QDialog):
     def createTable(self):
         self.tableWidget = QTableWidget()
         self.tableWidget.setColumnCount(self.numCol)
-        self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem("Label"))
-        self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem("Visible"))
-        self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem("Render"))
-        self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem("Edit"))
+        self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(LABEL))
+        self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(VISIBLE))
+        self.tableWidget.setHorizontalHeaderItem(2, QTableWidgetItem(RENDER))
+        self.tableWidget.setHorizontalHeaderItem(3, QTableWidgetItem(EDIT))
         self.tableWidget.move(0, 0)
 
     def setLoadFirstTime(self, loadFirstTime):
@@ -207,7 +208,7 @@ class CustomWidget(QWidget):
 
         if isinstance(data, int) or isinstance(data, float) or isinstance(data, str):
             label = QLabel(str(data))
-            layout.addWidget(label, alignment=Qt.AlignCenter)
+            layout.addWidget(label, alignment=Qt.AlignRight)
         else:  # Assuming the data is a file path to an image
             try:
                 im = data.convert("RGBA")
@@ -218,12 +219,12 @@ class CustomWidget(QWidget):
                 pixmap = QPixmap.fromImage(qimage)
                 label = QLabel()
                 label.setPixmap(pixmap)
-                label.setAlignment(Qt.AlignCenter)
+                label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
                 layout.addWidget(label)
 
                 if addText:
                     textLabel = QLabel(text)
-                    textLabel.setAlignment(Qt.AlignTop)
+                    textLabel.setAlignment(Qt.AlignBottom)
                     layout.addWidget(textLabel)
             except Exception as e:
                 print("Error loading the imagen:", e)
@@ -237,7 +238,7 @@ class TableView(QTableWidget):
         super().__init__()
         self.propertiesTableDialog = ColumnPropertiesTable(self, self)
         self._pageNumber = 1
-        self._pageSize = 100
+        self._pageSize = 50
         self._actualRow = 0
         self._actualColumn = 0
         self.oldColumn = None
@@ -257,15 +258,18 @@ class TableView(QTableWidget):
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.scrollBar = CustomScrollBar()
+        self.vScrollBar = CustomScrollBar()
+        self.hScrollBar = QScrollBar()
         self._createHeader()
         columns = self.objecManager.getTable(self._tableName).getColumns()
         self.propertiesTableDialog.registerColumns(columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
         self._fillTable()
-        self.setVerticalScrollBar(self.scrollBar)
-        self.scrollBar.valueChanged.connect(lambda: self._loadRows())
+        self.setVerticalScrollBar(self.vScrollBar)
+        self.setHorizontalScrollBar(self.hScrollBar)
+        self.vScrollBar.valueChanged.connect(lambda: self._loadRows())
+        self.hScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.setCurrentCell(0, 0)
 
     def setTableName(self, tableName):
@@ -283,10 +287,10 @@ class TableView(QTableWidget):
         self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
         self.objecManager.sort(self._tableName, column, self._orderAsc)
         self.clearContents()
-        self.scrollBar.setValue(0)
+        self.vScrollBar.setValue(0)
         self._loadRows()
 
-        icon = QIcon('resources/up-arrow.png') if self._orderAsc else QIcon('resources/down-arrow.png')
+        icon = QIcon(DOWN_ARROW) if self._orderAsc else QIcon(UP_ARROW)
         self.horizontalHeaderItem(column).setIcon(icon)
 
     def _createHeader(self):
@@ -310,22 +314,36 @@ class TableView(QTableWidget):
         self.setItemPrototype(prototype_item)
         self._loadRows()
 
+    def _calculateVisibleColumns(self):
+        viewportWidth = self.viewport().width()
+        visibleCols = 0
+
+        for col in range(self.columnCount()):
+            columnaX = self.columnViewportPosition(col)
+            widthColumna = self.columnWidth(col)
+            if columnaX < viewportWidth and columnaX + widthColumna > 0:
+                visibleCols += 1
+        return visibleCols
+
     def _calculateVisibleRows(self):
         viewportHeight = self.viewport().height()
         rowHeight = self.rowHeight(0) if self.rowHeight(0) else 30  # row height (minumum size in case of the table is empty)
         visibleRows = viewportHeight // rowHeight + 1
         return visibleRows
 
-    def _addRows(self, rows, currentValue):
-        columnsCount = len(rows[0].getValues())
+    def _addRows(self, rows, currentRowIndex, currenctColumnIndex):
+        columnsCount = self._calculateVisibleColumns()
+        endColumn = currenctColumnIndex + columnsCount
+        if endColumn > len(self._columns):
+            endColumn = len(self._columns)
+
         for i in range(len(rows)):
             rowValues = rows[i]
             if rowValues.getValues():
                 values = rowValues.getValues()
-                for col in range(columnsCount):
+                for col in range(currenctColumnIndex, endColumn):
                     if self._columns[col].getRenderer().renderType() != Image:
-                        item = self._columns[col].getRenderer().render(
-                            values[col])
+                        item = self._columns[col].getRenderer().render(values[col])
                     else:
                         if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
                             item = self._columns[col].getRenderer().render(values[col])
@@ -333,16 +351,17 @@ class TableView(QTableWidget):
                             item = values[col]
 
                     widget = CustomWidget(item)
-                    self.setCellWidget(i + currentValue, col, widget)
+                    self.setCellWidget(i + currentRowIndex, col, widget)
                     self.resizeColumnToContents(col)
-                self.resizeRowToContents(i + currentValue)
+                self.resizeRowToContents(i + currentRowIndex)
 
     def _loadRows(self):
-        currentValue = self.scrollBar.value()
+        currentRowIndex = self.vScrollBar.value()
+        currenctColumnIndex = self.hScrollBar.value()
         visibleRows = self._calculateVisibleRows()
-        rows = self.objecManager.getRows(self._tableName, currentValue,
+        rows = self.objecManager.getRows(self._tableName, currentRowIndex,
                                          visibleRows)
-        self._addRows(rows, currentValue)
+        self._addRows(rows, currentRowIndex, currenctColumnIndex)
 
     def getActualColumn(self):
         return self._actualColumn
@@ -389,10 +408,10 @@ class GalleryView(QTableWidget):
         self.horizontalHeader().setVisible(True)
         self.setHorizontalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
-        self.scrollBar = CustomScrollBar()
+        self.vScrollBar = CustomScrollBar()
         self._loadImages()
-        self.setVerticalScrollBar(self.scrollBar)
-        self.scrollBar.valueChanged.connect(self._loadImages)
+        self.setVerticalScrollBar(self.vScrollBar)
+        self.vScrollBar.valueChanged.connect(self._loadImages)
         self._triggeredResize = False
 
     def _calculateVisibleColumns(self):
@@ -444,7 +463,7 @@ class GalleryView(QTableWidget):
                     break
 
     def _loadImages(self):
-        currentValue = self.scrollBar.value()
+        currentValue = self.vScrollBar.value()
         visibleRows = self._calculateVisibleRows()
         seekFirstImage = currentValue * self._columnsCount
         seekLastImage = visibleRows * self._columnsCount
@@ -477,7 +496,7 @@ class QTMetadataViewer(QMainWindow):
         self.objecManager = ObjectManager(args.fileName)
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
-        self._pageSize = 100
+        self._pageSize = 50
         self._triggeredResize = False
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
         self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
@@ -517,47 +536,47 @@ class QTMetadataViewer(QMainWindow):
         self.newAction = QAction(self)
         self.newAction.setText("&Open...")
         self.newAction.setShortcut(QKeySequence("Ctrl+O"))
-        self.newAction.setIcon(QIcon("resources/folder.png"))
+        self.newAction.setIcon(QIcon(FOLDER))
 
         self.exitAction = QAction(self)
         self.exitAction.setText("E&xit")
         self.exitAction.setShortcut(QKeySequence("Ctrl+X"))
-        self.exitAction.setIcon(QIcon("resources/exit.png"))
+        self.exitAction.setIcon(QIcon(EXIT))
         self.exitAction.triggered.connect(sys.exit)
 
         # Display actions
         self.table.propertiesTableAction = QAction("Columns...", self)
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
-        self.table.propertiesTableAction.setIcon(QIcon("resources/table.png"))
+        self.table.propertiesTableAction.setIcon(QIcon(TABLE))
         if self._galleryView:
             self.table.propertiesTableAction.setEnabled(False)
 
         # Toolbar action
         self.gotoTableAction = QAction("Go to TABLE view", self)
-        self.gotoTableAction.setIcon(QIcon("resources/table-view.png"))
+        self.gotoTableAction.setIcon(QIcon(TABLE_VIEW))
         self.gotoTableAction.setEnabled(False)
         self.gotoTableAction.triggered.connect(self._loadTableView)
 
         self.gotoGalleryAction = QAction("Go to GALLERY view", self)
-        self.gotoGalleryAction.setIcon(QIcon("resources/gallery.png"))
+        self.gotoGalleryAction.setIcon(QIcon(GALLERY_VIEW))
         self.gotoGalleryAction.triggered.connect(self._loadGalleryView)
 
         # Columns  Toolbar action
         self.reduceDecimals = QAction("Reduce decimals", self)
-        self.reduceDecimals.setIcon(QIcon("resources/reducedecimals.png"))
+        self.reduceDecimals.setIcon(QIcon(REDUCE_DECIMALS))
         self.reduceDecimals.setEnabled(False)
 
         self.increaseDecimals = QAction("Increase decimals", self)
-        self.increaseDecimals.setIcon(QIcon("resources/increasedecimals.png"))
+        self.increaseDecimals.setIcon(QIcon(INCREASE_DECIMALS))
         self.increaseDecimals.setEnabled(False)
 
         self.sortUp = QAction("Sort ascending", self)
-        self.sortUp.setIcon(QIcon("resources/up-arrow.png"))
+        self.sortUp.setIcon(QIcon(DOWN_ARROW))
         self.sortUp.triggered.connect(lambda : self.table.orderByColumn(self.table.getActualColumn(), True))
 
         self.sortDown = QAction("Sort descending", self)
-        self.sortDown.setIcon(QIcon("resources/down-arrow.png"))
+        self.sortDown.setIcon(QIcon(UP_ARROW))
         self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
 
     def _loadTableView(self):

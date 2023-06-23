@@ -25,37 +25,26 @@
 # *
 # **************************************************************************
 
-from abc import abstractmethod
-from metadataviewer.model import Page, Table
+#  -------ICONS----------
+
+DOWN_ARROW = 'resources/down-arrow.png'
+UP_ARROW = 'resources/up-arrow.png'
+FOLDER = 'resources/folder.png'
+EXIT = 'resources/exit.png'
+TABLE = 'resources/table.png'
+TABLE_VIEW = 'resources/table-view.png'
+GALLERY_VIEW = 'resources/gallery.png'
+REDUCE_DECIMALS = 'resources/reducedecimals.png'
+INCREASE_DECIMALS = 'resources/increasedecimals.png'
 
 
-class IDAO:
+# -------LABELS PROPERTIES_TABLE ------------
+LABEL = 'Label'
+VISIBLE = 'Visible'
+RENDER = 'Render'
+EDIT = 'Edit'
 
-    @abstractmethod
-    def __init__(self, filename: str):
-        pass
 
-    @abstractmethod
-    def fillPage(self, page: Page, actualColumn: int, orderAsc: bool) -> None:
-       pass
 
-    @abstractmethod
-    def fillTable(self, table: Table) -> None:
-        pass
 
-    @abstractmethod
-    def getTableNames(self) -> list:
-        pass
 
-    @abstractmethod
-    def sort(self, tableName, column, reverse=True) -> None:
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def getCompatibleFileTypes() -> list:
-        pass
-
-    @abstractmethod
-    def getTableRowCount(self, tableName: str) -> int:
-        pass
