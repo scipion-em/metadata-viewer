@@ -27,7 +27,7 @@
 import os
 from functools import lru_cache
 
-from metadataviewer.dao import StarFile
+from metadataviewer.dao import StarFile, SqliteFile
 from metadataviewer.model import Table, Page
 
 
@@ -36,7 +36,7 @@ class ObjectManager:
         self._fileName = fileName
         self._tables = {}
         self._pageNumber = 1
-        self._pageSize = 100
+        self._pageSize = 50
         self._registeredDAO = []
         self._registeredRenderers = []
         self.__registerterOwnDAOs()
@@ -44,6 +44,7 @@ class ObjectManager:
 
     def __registerterOwnDAOs(self):
         self.registerDAO(StarFile)
+        self.registerDAO(SqliteFile)
 
     def getRegisteredDAO(self):
         return self._registeredDAO
@@ -68,6 +69,12 @@ class ObjectManager:
     def getFileName(self):
         return self._fileName
 
+    def getPageSize(self):
+        return self._pageSize
+
+    def getPageNumber(self):
+        return self._pageNumber
+
     def createTable(self, tableName: str):
         self._tableName = tableName
         table = Table(tableName)
@@ -85,14 +92,46 @@ class ObjectManager:
         :param actualColumn: this parameter is used by the cache
         :param orderAsc: this parameter is used by the cache
         """
-        if tableName not in self._tables:
-            table = self.createTable(tableName)
-            self._tables[tableName] = table
-        else:
-            table = self._tables[tableName]
+        table = self.getTable(tableName)
         self.page = Page(table, pageNumber=pageNumber, pageSize=pageSize)
-        self._dao.fillPage(self.page)
+        self._dao.fillPage(self.page, actualColumn, orderAsc)
+        table.setSortingChanged(False)
         return self.page
+
+    def getNumberPageFromRow(self, row):
+        """Get the number of the page on wich  the row is located"""
+        pageSize = self.getPageSize()
+        pageNumber = int((row + 1) / pageSize)
+        if (row + 1) % pageSize > 0:
+            pageNumber += 1
+
+        return pageNumber
+
+    def getCurrentRow(self, table, currentRow):
+        """This method return a row given a position in the table"""
+        # Calculating the page to which that row belongs
+        pageNumber = self.getNumberPageFromRow(currentRow)
+        page = self.getPage(table.getName(), pageNumber, self._pageSize,
+                            table.getSortingColumnIndex(),
+                            table.isSortingAsc())
+        rowPosition = currentRow % self.getPageSize()
+        if rowPosition == page.getSize():
+            return None
+        row = page.getRows()[rowPosition]
+        return row
+
+    def getRows(self, tableName, firstRow, visibleRows):
+        """Return a range of rows"""
+        rows = []
+        table = self.getTable(tableName)
+        for i in range(visibleRows):
+            row = self.getCurrentRow(table, firstRow)
+            if row:
+                rows.append(row)
+                firstRow += 1
+            else:
+                break
+        return rows
 
     def getTableNames(self):
         return self._dao.getTableNames()
@@ -105,14 +144,19 @@ class ObjectManager:
         return self.getPage(self._tableName, self._pageNumber, self._pageSize)
 
     def getTable(self, tableName: str):
-        if tableName != self._tableName:
-            self.page.getTable().clear()
-            self.page.clear()
-            return self.getPage(tableName, self._pageNumber, self._pageSize)
-        return None
+        if tableName not in self._tables:
+            table = self.createTable(tableName)
+            self._tables[tableName] = table
+        else:
+            table = self._tables[tableName]
+
+        return table
 
     def sort(self, tableName, column, reverse=True):
-        self._dao.sort(tableName, column, reverse)
+        table = self.getTable(tableName)
+        table.setSortingColumnIndex(column)
+        table.setSortingAsc(reverse)
+
 
 
 

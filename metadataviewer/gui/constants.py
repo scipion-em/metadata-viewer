@@ -1,7 +1,7 @@
 # **************************************************************************
 # *
 # * Authors: Yunior C. Fonseca Reyna    (cfonseca@cnb.csic.es)
-# *          Pablo Conesa Mingo         (pconesa@cnb.csic.es)
+# *
 # *
 # * Unidad de  Bioinformatica of Centro Nacional de Biotecnologia , CSIC
 # *
@@ -25,33 +25,26 @@
 # *
 # **************************************************************************
 
-import sys
-import argparse
-from PyQt5.QtWidgets import QApplication
+#  -------ICONS----------
 
-from metadataviewer.gui.qtviewer import QTMetadataViewer
-
-QT_VIEWER = 'qtviewer'
-
-
-def defineArgs():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fileName", help="File to be displayed by the dataviewer ")
-    parser.add_argument("--viewer", help="Select a viewer implementation (qtviewer, tkviewer, terminal)", default=QT_VIEWER)
-    parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
-    parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
-    return parser
+DOWN_ARROW = 'resources/down-arrow.png'
+UP_ARROW = 'resources/up-arrow.png'
+FOLDER = 'resources/folder.png'
+EXIT = 'resources/exit.png'
+TABLE = 'resources/table.png'
+TABLE_VIEW = 'resources/table-view.png'
+GALLERY_VIEW = 'resources/gallery.png'
+REDUCE_DECIMALS = 'resources/reducedecimals.png'
+INCREASE_DECIMALS = 'resources/increasedecimals.png'
 
 
-def main():
-    parser = defineArgs()
-    argsList = sys.argv[1:]
-    args = parser.parse_args(argsList)
-    app = QApplication(sys.argv)
-    if args.viewer == QT_VIEWER:
-        window = QTMetadataViewer(args)
-        window.show()
-    sys.exit(app.exec_())
+# -------LABELS PROPERTIES_TABLE ------------
+LABEL = 'Label'
+VISIBLE = 'Visible'
+RENDER = 'Render'
+EDIT = 'Edit'
 
-if __name__ == "__main__":
-    main()
+
+
+
+

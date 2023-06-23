@@ -68,15 +68,38 @@ class Table:
     def __init__(self, name, columns=None):
         self._name = name
         self._columns = columns or list()
+        self._sortingColumnIndex = -1
+        self._sortingAsc = True
+        self._sortingChanged = False
 
     def getName(self):
         return self._name
+
+    def hasSortingChanged(self):
+        return self._sortingChanged
+
+    def setSortingChanged(self, sortingChanged):
+        self._sortingChanged = sortingChanged
 
     def getColumns(self):
         return self._columns
 
     def getSize(self):
         return len(self._columns)
+
+    def getSortingColumnIndex(self):
+        return self._sortingColumnIndex
+
+    def isSortingAsc(self):
+        return self._sortingAsc
+
+    def setSortingColumnIndex(self, index):
+        self._sortingColumnIndex = index
+        self._sortingChanged = True
+
+    def setSortingAsc(self, ascending):
+        self._sortingAsc = ascending
+        self._sortingChanged = True
 
     def addColumn(self, column):
         self._columns.append(column)
@@ -150,7 +173,12 @@ class Page:
 # --------- Helper functions  ------------------------
 
 def _guessRender(strValue):
-    from .renderers import IntRenderer, FloatRenderer, ImageRenderer, StrRenderer
+    from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, MatrixRender,
+        StrRenderer)
+
+    if strValue is None:
+        return StrRenderer()
+
     try:
         renderer = IntRenderer()
         renderer._render(strValue)

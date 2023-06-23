@@ -30,7 +30,7 @@ from .model import IDAO
 
 class StarFile(IDAO):
     """
-    Class to handle STAR files.
+    Class to handle STAR or XMD files.
     """
     def __init__(self, inputFile):
         self._file = self.__loadFile(inputFile)
@@ -46,14 +46,23 @@ class StarFile(IDAO):
     def fillTable(self, table):
         self._loadStarFileInfo(table)
 
-    def fillPage(self, page):
+    def fillPage(self, page, actualColumn, orderAsc):
         """
-        Read the given table from the start file and parse columns definition
-        and data rows.
+        Fill a page taking into account the page number and size.
+        Variables actualColumn and orderAsc control the table order
         """
-        tableName = page.getTable().getName()
-        for row in self._iterRowLines(tableName, page.getPageNumber(),
-                                      page.getPageSize()):
+        table = page.getTable()
+        tableName = table.getName()
+        if table.hasSortingChanged():
+            self.sort(tableName, actualColumn, orderAsc)
+
+        # moving to the first row of the page
+        pageNumber = page.getPageNumber()
+        pageSize = page.getPageSize()
+        firstRow = pageNumber * pageSize - pageSize
+        endRow = pageNumber * pageSize  # getting more rows
+
+        for row in self._iterRowLines(tableName, firstRow, endRow):
             if row:
                 page.addRow(row)
 
@@ -134,14 +143,11 @@ class StarFile(IDAO):
         self._line = line.strip()
         self._foundLoop = foundLoop
 
-    def _iterRowLines(self, tableName, pageNumber, pageSize):
-        # moving to the first row of the page
-        firstRow = pageNumber * pageSize - pageSize
-        endRow = pageNumber * pageSize + 30  # getting 30 rows more
+    def _iterRowLines(self, tableName, firstRow, endRow):
         if self._tableCount[tableName] == 1:
             yield 1, self._tableData[tableName][0]
             return
-        if firstRow + pageSize + 30 > self._tableCount[tableName]:
+        if firstRow + endRow > self._tableCount[tableName]:
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
             values = self._tableData[tableName][i]
@@ -156,8 +162,8 @@ class StarFile(IDAO):
         return ['star', 'xmd']
 
     def sort(self, tableName, column, reverse=True):
-        """ Sort the table in place using the provided key.
-            :param key is a string, it should be the name of one column. """
+        """ Sort the table in place using the provided column.
+            :param column is a number, it is a index of one column. """
         _columType = self._labelsTypes[tableName][column]
         orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
                            reverse=reverse)

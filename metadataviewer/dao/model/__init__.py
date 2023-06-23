@@ -36,7 +36,7 @@ class IDAO:
         pass
 
     @abstractmethod
-    def fillPage(self, page: Page) -> None:
+    def fillPage(self, page: Page, actualColumn: int, orderAsc: bool) -> None:
        pass
 
     @abstractmethod
@@ -54,4 +54,8 @@ class IDAO:
     @staticmethod
     @abstractmethod
     def getCompatibleFileTypes() -> list:
+        pass
+
+    @abstractmethod
+    def getTableRowCount(self, tableName: str) -> int:
         pass
