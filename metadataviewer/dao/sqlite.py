@@ -24,20 +24,18 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
+import logging
+logger = logging.getLogger()
+
 from functools import lru_cache
 import sqlite3
 from .model import IDAO
 
 
 class SqliteFile(IDAO):
-    """
-    Class to manipulate Scipion Set Sqlite files.
-    """
+    """  Class to manipulate Scipion Sqlite files. """
     def __init__(self, inputFile):
-        """
-        Args:
-            inputFile: can be a str with the file path or a file object.
-        """
         self._names = []
         self._file = inputFile
         self._con = sqlite3.connect(f"file:{inputFile}?mode=ro", uri=True)
@@ -46,8 +44,11 @@ class SqliteFile(IDAO):
         self._tables = {}
         self._labels = {}
         self._labelsTypes = {}
+        self._aliases = {}
+        self._columnsMap = {}
 
     def composeDataTables(self, tablesNames):
+        tablesNames = sorted(tablesNames)
         for tableName in tablesNames:
             divTable = tableName.split('_')
             if len(divTable) > 1:
@@ -55,6 +56,15 @@ class SqliteFile(IDAO):
                     objectTable = divTable[0] + '_Objects'
                     self._tables[objectTable] = tableName
                     self._names.append(objectTable)
+
+    def composeTableAlias(self, tableName):
+        firstRow = self.getTableRow(tableName, 0)
+        className = firstRow['class_name']
+        if tableName.__contains__('_'):
+            alias = tableName.split('_')[0] + '_' + className
+        else:
+            alias = className
+        return alias
 
     def getTableNames(self):
         """ Return all the table names found in the database. """
@@ -70,6 +80,8 @@ class SqliteFile(IDAO):
                 # Getting the first row to identify the labels and theirs type
                 firstRow = self.getTableRow(tableName, 0, classes=self._tables[tableName])
                 self._labels[tableName] = list(firstRow.keys())
+                alias = self.composeTableAlias(self._tables[tableName])
+                self._aliases[tableName] = alias
                 labelsTypes = []
                 self._tableCount[tableName] = self.getTableRowCount(tableName)
                 for key, value in firstRow.items():
@@ -84,11 +96,11 @@ class SqliteFile(IDAO):
         values = list(self.getTableRow(tableName, 0,
                                        classes=self._tables[tableName]).values())
         table.createColumns(colNames, values)
+        table.setAlias(self._aliases[tableName])
 
     def fillPage(self, page, actualColumn=0, orderAsc=True):
         """
-        Read the given table from the start file and parse columns definition
-        and data rows.
+        Read the given table from the sqlite and fill the page
         """
         tableName = page.getTable().getName()
         # moving to the first row of the page
@@ -110,6 +122,7 @@ class SqliteFile(IDAO):
     @lru_cache
     def getTableRowCount(self, tableName):
         """ Return the number of elements in the given table. """
+        logger.debug("Reading the table %s" %tableName)
         return self._con.execute(f"SELECT COUNT(*) FROM {tableName}").fetchone()['COUNT(*)']
 
     def iterTable(self, tableName, **kwargs):
@@ -126,17 +139,16 @@ class SqliteFile(IDAO):
         query = f"SELECT * FROM {tableName}"
 
         if 'mode' in kwargs:
-            if kwargs['mode'] == 'DESC':
-                if 'orderBy' in kwargs:
-                    if kwargs['orderBy']:
-                        column = self._getColumnMap(kwargs['orderBy'])
-                        if not column:
-                            column = kwargs['orderBy']
+            if 'orderBy' in kwargs:
+                if kwargs['orderBy']:
+                    column = self._getColumnMap(tableName, kwargs['orderBy'])
+                    if not column:
+                        column = kwargs['orderBy']
 
-                        query += f" ORDER BY {column}"
+                    query += f" ORDER BY {column}"
 
-                if kwargs['mode']:
-                    query += f" {kwargs['mode']}"
+            if kwargs['mode']:
+                query += f" {kwargs['mode']}"
 
         if 'start' in kwargs and 'limit' not in kwargs:
             kwargs['limit'] = -1
@@ -152,12 +164,12 @@ class SqliteFile(IDAO):
             while row := res.fetchone():
                 yield row
         else:
-            self.columnsMap = {row['column_name']: row['label_property']
+            self._columnsMap[tableName] = {row['column_name']: row['label_property']
                           for row in self.iterTable(kwargs['classes'])}
 
             def _row_factory(cursor, row):
                 fields = [column[0] for column in cursor.description]
-                return {self.columnsMap.get(k, k): v for k, v in zip(fields, row)}
+                return {self._columnsMap[tableName].get(k, k): v for k, v in zip(fields, row)}
 
             # Modify row factory to modify column names
             self._con.row_factory = _row_factory
@@ -167,8 +179,11 @@ class SqliteFile(IDAO):
             # Restore row factory
             self._con.row_factory = self._dictFactory
 
-    def _getColumnMap(self, column):
-        for key, value in self.columnsMap.items():
+    def getTableAliases(self):
+        return self._aliases
+
+    def _getColumnMap(self, tableName, column):
+        for key, value in self._columnsMap[tableName].items():
             if value == column:
                 return key
         return None
@@ -190,6 +205,7 @@ class SqliteFile(IDAO):
         return {key: value for key, value in zip(fields, row)}
 
     def getCompatibleFileTypes(self):
+        logger.debug("Selected SqliteFile DAO")
         return ['sqlite']
 
     def __exit__(self, exc_type, exc_val, exc_tb):

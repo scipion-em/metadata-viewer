@@ -24,3 +24,34 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+
+import sys
+import argparse
+from PyQt5.QtWidgets import QApplication
+
+from metadataviewer.gui.qtviewer import QTMetadataViewer
+
+QT_VIEWER = 'qtviewer'
+
+
+def defineArgs():
+    parser = argparse.ArgumentParser()
+    parser.add_argument("fileName", help="File to be displayed by the dataviewer ")
+    parser.add_argument("--viewer", help="Select a viewer implementation (qtviewer, tkviewer, terminal)", default=QT_VIEWER)
+    parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
+    parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
+    return parser
+
+
+def main():
+    parser = defineArgs()
+    argsList = sys.argv[1:]
+    args = parser.parse_args(argsList)
+    app = QApplication(sys.argv)
+    if args.viewer == QT_VIEWER:
+        window = QTMetadataViewer(args)
+        window.show()
+    sys.exit(app.exec_())
+
+if __name__ == "__main__":
+    main()

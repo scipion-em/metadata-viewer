@@ -27,16 +27,16 @@
 
 #  -------ICONS----------
 
-DOWN_ARROW = 'resources/down-arrow.png'
-UP_ARROW = 'resources/up-arrow.png'
-FOLDER = 'resources/folder.png'
-EXIT = 'resources/exit.png'
-TABLE = 'resources/table.png'
-TABLE_VIEW = 'resources/table-view.png'
-GALLERY_VIEW = 'resources/gallery.png'
-REDUCE_DECIMALS = 'resources/reducedecimals.png'
-INCREASE_DECIMALS = 'resources/increasedecimals.png'
-
+DOWN_ARROW = 'gui/resources/down-arrow.png'
+UP_ARROW = 'gui/resources/up-arrow.png'
+FOLDER = 'gui/resources/folder.png'
+EXIT = 'gui/resources/exit.png'
+TABLE = 'gui/resources/table.png'
+TABLE_VIEW = 'gui/resources/table-view.png'
+GALLERY_VIEW = 'gui/resources/gallery.png'
+REDUCE_DECIMALS = 'gui/resources/reducedecimals.png'
+INCREASE_DECIMALS = 'gui/resources/increasedecimals.png'
+TABLE_BLOCKS = 'gui/resources/sections.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
