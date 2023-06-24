@@ -30,10 +30,17 @@ from .renderers import StrRenderer
 class Column:
     def __init__(self, name, renderer=None):
         self._name = name
+        self._alias = None
         self._renderer = renderer or StrRenderer
 
     def getName(self):
         return self._name
+
+    def getAlias(self):
+        return self._alias
+
+    def setAlias(self, alias):
+        self._alias = alias
 
     def getRenderer(self):
         return self._renderer
@@ -67,6 +74,7 @@ class Row:
 class Table:
     def __init__(self, name, columns=None):
         self._name = name
+        self._alias = None
         self._columns = columns or list()
         self._sortingColumnIndex = -1
         self._sortingAsc = True
@@ -74,6 +82,12 @@ class Table:
 
     def getName(self):
         return self._name
+
+    def getAlias(self):
+        return self._alias
+
+    def setAlias(self, alias):
+        self._alias = alias
 
     def hasSortingChanged(self):
         return self._sortingChanged

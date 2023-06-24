@@ -24,6 +24,8 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import logging
+logger = logging.getLogger()
 
 from .model import IDAO
 
@@ -39,9 +41,14 @@ class StarFile(IDAO):
         self._labels = {}
         self._names = []
         self._labelsTypes = {}
+        self._aliases = {}
 
     def __loadFile(self, inputFile):
-        return open(inputFile, 'r')
+        try:
+            return open(inputFile, 'r')
+        except Exception as e:
+            logger.error("The file could not be opened. Make sure the path is correct: \n %s" %e)
+            return
 
     def fillTable(self, table):
         self._loadStarFileInfo(table)
@@ -62,6 +69,7 @@ class StarFile(IDAO):
         firstRow = pageNumber * pageSize - pageSize
         endRow = pageNumber * pageSize  # getting more rows
 
+        logger.debug("Creating the page with rows: %d -> %d " % (firstRow, endRow))
         for row in self._iterRowLines(tableName, firstRow, endRow):
             if row:
                 page.addRow(row)
@@ -72,9 +80,11 @@ class StarFile(IDAO):
     def getTableNames(self):
         """ Return all the names of the data_ blocks found in the file and
             fill all labels and data of every table name """
-        if not self._names:  # scan for ALL table names
+        if not self._names:
             f = self._file
             line = f.readline()
+            logger.debug("Reading the star file completely and filling "
+                         "the model().")
             while line:
                 # While searching for a data line, we will store the offsets
                 # for any data_ line that we find
@@ -86,9 +96,13 @@ class StarFile(IDAO):
                     self._labels[tn] = ['id'] + data[1]
                     self._labelsTypes[tn] = data[2]
                     self._tableData[tn] = data[3]
+                    self._aliases[tn] = tn
                 line = f.readline()
 
         return list(self._names)
+
+    def getTableAliases(self):
+        return self._aliases
 
     def _getData(self):
         """ Method to get all information of the table"""
@@ -110,6 +124,7 @@ class StarFile(IDAO):
         return count, labels, labelsTypes, data
 
     def _getLabels(self):
+        logger.debug("Getting the table labels...")
         line = self._line
         labels = []
         while line.startswith('\n'):
@@ -123,9 +138,11 @@ class StarFile(IDAO):
         return line, labels
 
     def _loadStarFileInfo(self, table):
+        logger.debug("Creating the table columns...")
         colNames = self._labels[table.getName()]
         values = self._tableData[table.getName()][0]
         table.createColumns(colNames, values)
+        table.setAlias(table.getName())
 
     def _findLabelLine(self):
         line = ''
@@ -159,14 +176,15 @@ class StarFile(IDAO):
             self._file = None
 
     def getCompatibleFileTypes(self):
+        logger.debug("Selected StarFile DAO")
         return ['star', 'xmd']
 
-    def sort(self, tableName, column, reverse=True):
+    def sort(self, tableName, column, sortAsc=True):
         """ Sort the table in place using the provided column.
             :param column is a number, it is a index of one column. """
         _columType = self._labelsTypes[tableName][column]
         orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
-                           reverse=reverse)
+                           reverse=not sortAsc)
         self._tableData[tableName] = orderList
 
 # -----------------------------------Utils methods -----------------------

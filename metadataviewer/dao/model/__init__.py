@@ -48,6 +48,10 @@ class IDAO:
         pass
 
     @abstractmethod
+    def getTableAliases(self) -> dict:
+        pass
+
+    @abstractmethod
     def sort(self, tableName, column, reverse=True) -> None:
         pass
 

@@ -275,6 +275,9 @@ class TableView(QTableWidget):
     def setTableName(self, tableName):
         self._tableName = tableName
 
+    def getTableName(self):
+        return self._tableName
+
     def orderByColumn(self, column, order):
 
         self._orderAsc = order
@@ -384,7 +387,9 @@ class GalleryView(QTableWidget):
         self.objecManager = objectManager
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
-        self._tableName = self.objecManager.getTable(self.tableNames[0]).getName()
+        table = self.objecManager.getTable(self.tableNames[0])
+        self._tableName = table.getName()
+        self._tableAlias = table.getAlias()
         self._columns = self.objecManager.getTable(self._tableName).getColumns()
         self._columnWithImages = self.getColumnWithImages()
         self.setGeometry(0, 0, 600, 600)
@@ -395,7 +400,7 @@ class GalleryView(QTableWidget):
     def _createGallery(self, tableName):
         # Creating the gallery
         self._tableName = tableName
-        self.setColumnCount(10)
+        self.setColumnCount(30)
         self._tableSize = self.objecManager.getTableRowCount(self._tableName)
         self._columnsCount = self._calculateVisibleColumns()
         self._rowsCount = int(self._tableSize / self._columnsCount) + 1
@@ -496,6 +501,7 @@ class QTMetadataViewer(QMainWindow):
         self.objecManager = ObjectManager(args.fileName)
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
+        self.tableAliases = self.objecManager.getTableAliases()
         self._pageSize = 50
         self._triggeredResize = False
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
@@ -641,14 +647,14 @@ class QTMetadataViewer(QMainWindow):
         self.blockLabelIcon = QLabel('\t')
         toolBar.addWidget(self.blockLabelIcon)
         self.blockLabel = QLabel('Block')
-        icon = QIcon('resources/sections.png')
+        icon = QIcon(TABLE_BLOCKS)
         self.blockLabel.setPixmap(icon.pixmap(16, 16))
         self.blockLabel.setToolTip('Blocks')
         toolBar.addWidget(self.blockLabel)
         self.bockTableName = QComboBox()
         self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
-            self.bockTableName.addItem(tableName)
+            self.bockTableName.addItem(self.tableAliases[tableName])
             # Connect signals to the methods.
         self.bockTableName.activated.connect(self.selectTable)
         self.bockTableName.setToolTip('Blocks')
@@ -675,17 +681,24 @@ class QTMetadataViewer(QMainWindow):
                                    not table_view.isColumnHidden(column))
 
     def selectTable(self):
-        tableName = self.bockTableName.currentText()
-        self.table._createTable(tableName)
-        self.gallery.setTableName(tableName)
-        galleryEnable = True if self.gallery.getColumnWithImages() else False
-        if galleryEnable:
+        tableAlias = self.bockTableName.currentText()
+        tableName = tableAlias
+        for table, alias in self.tableAliases.items():
+            if alias == tableAlias:
+                tableName = table
+                break
+        if tableName != self.table.getTableName():
+            self.table.setTableName(tableName)
+            self.gallery.setTableName(tableName)
+            self.table._createTable(tableName)
             self.gallery._createGallery(tableName)
-            self.gotoGalleryAction.setEnabled(True)
-        else:
-            self.gotoGalleryAction.setEnabled(False)
+            galleryEnable = True if self.gallery.getColumnWithImages() else False
+            if galleryEnable:
+                self.gotoGalleryAction.setEnabled(True)
+            else:
+                self.gotoGalleryAction.setEnabled(False)
 
-        self._rowsCount = self.objecManager.getTableRowCount(tableName)
-        self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
+            self._rowsCount = self.objecManager.getTableRowCount(tableName)
+            self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
 
 

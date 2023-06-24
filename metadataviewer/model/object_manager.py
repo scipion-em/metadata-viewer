@@ -24,6 +24,9 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import logging
+logger = logging.getLogger()
+
 import os
 from functools import lru_cache
 
@@ -54,12 +57,14 @@ class ObjectManager:
 
     def selectDAO(self):
         for dao in self._registeredDAO:
-            # instance = getattr(sys.modules[__name__], dao)(self._fileName)
             instance = dao(self._fileName)
             ext = os.path.basename(self._fileName).split('.')[1]
             if ext in instance.getCompatibleFileTypes():
                  self._dao = instance
                  break
+
+        if self._dao is None:
+            logger.error("There is no DAO registered to handle this type of file.")
 
         return self._dao
 
@@ -116,6 +121,7 @@ class ObjectManager:
                             table.isSortingAsc())
         rowPosition = currentRow % self.getPageSize()
         if rowPosition == page.getSize():
+            logger.info("The final row of the table has been reached.")
             return None
         row = page.getRows()[rowPosition]
         return row
@@ -135,6 +141,9 @@ class ObjectManager:
 
     def getTableNames(self):
         return self._dao.getTableNames()
+
+    def getTableAliases(self):
+        return self._dao.getTableAliases()
 
     def getTableRowCount(self, tableName: str):
         return self._dao.getTableRowCount(tableName)
