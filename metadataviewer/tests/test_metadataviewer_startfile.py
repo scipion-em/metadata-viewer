@@ -33,15 +33,15 @@ from metadataviewer.model import Table, Page
 class TestStarFile(unittest.TestCase):
 
     def testCreatePageColumns(self):
-        pageFromStarFile = StarFile('../datasets/output_particle.star')
+        pageFromStarFile = StarFile('datasets/output_particle.star')
         table = Table('particles')
         tableNames = pageFromStarFile.getTableNames()
         self.assertEqual(len(tableNames), 2)
         pageFromStarFile.fillTable(table)
         self.assertEqual(len(table.getColumns()), 15)
         page = Page(table, pageNumber=2, pageSize=10)
-        pageFromStarFile.fillPage(page)
-        self.assertEqual(page.getSize(), 40)
+        pageFromStarFile.fillPage(page, 0, True)
+        self.assertEqual(page.getSize(), 10)
         pageFromStarFile.close()
 
 

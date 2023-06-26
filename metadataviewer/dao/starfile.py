@@ -47,8 +47,9 @@ class StarFile(IDAO):
         try:
             return open(inputFile, 'r')
         except Exception as e:
-            logger.error("The file could not be opened. Make sure the path is correct: \n %s" %e)
-            return
+            logger.error("The file could not be opened. Make sure the path is "
+                         "correct: \n %s" % e)
+            return None
 
     def fillTable(self, table):
         self._loadStarFileInfo(table)
@@ -181,7 +182,7 @@ class StarFile(IDAO):
 
     def sort(self, tableName, column, sortAsc=True):
         """ Sort the table in place using the provided column.
-            :param column is a number, it is a index of one column. """
+            :param column is a number, it is the index of one column. """
         _columType = self._labelsTypes[tableName][column]
         orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
                            reverse=not sortAsc)

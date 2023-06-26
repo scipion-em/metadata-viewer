@@ -32,7 +32,7 @@ from metadataviewer.model.object_manager import ObjectManager
 class TestObjectManager(unittest.TestCase):
 
     def testObjectManager(self):
-        objectManager = ObjectManager('datasets/output_particle.star')
+        objectManager = ObjectManager('gui/datasets/output_particle.star')
         dao = objectManager.selectDAO()
         self.assertIsNotNone(dao)
         objectManager.getTableNames()

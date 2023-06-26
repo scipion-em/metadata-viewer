@@ -35,10 +35,10 @@ from .model import IDAO
 
 class SqliteFile(IDAO):
     """  Class to manipulate Scipion Sqlite files. """
-    def __init__(self, inputFile):
+    def __init__(self, sqliteFile):
         self._names = []
-        self._file = inputFile
-        self._con = sqlite3.connect(f"file:{inputFile}?mode=ro", uri=True)
+        self._file = sqliteFile
+        self._con = self.__loadDB(sqliteFile)
         self._con.row_factory = self._dictFactory
         self._tableCount = {}
         self._tables = {}
@@ -46,6 +46,14 @@ class SqliteFile(IDAO):
         self._labelsTypes = {}
         self._aliases = {}
         self._columnsMap = {}
+
+    def __loadDB(self, sqliteFile):
+        try:
+            return sqlite3.connect(f"file:{sqliteFile}?mode=ro", uri=True)
+        except Exception as e:
+            logger.error("The file could not be opened. Make sure the path is "
+                         "correct: \n %s" % e)
+            return None
 
     def composeDataTables(self, tablesNames):
         tablesNames = sorted(tablesNames)

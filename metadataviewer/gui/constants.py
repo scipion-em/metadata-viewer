@@ -44,6 +44,24 @@ VISIBLE = 'Visible'
 RENDER = 'Render'
 EDIT = 'Edit'
 
+# ------------ACTIONS TEXTS-------------------------
+
+COLUMNS = 'Columns...'
+GO_TO_TABLE_VIEW = "Go to TABLE view"
+GO_TO_GALLERY_VIEW = 'Go to GALLERY view'
+REDUCE_DECIMALS_TEXT = 'Reduce decimals'
+INCREASE_DECIMALS_TEXT = 'Increase decimals'
+SORT_ASC = 'Sort ascending'
+SORT_DESC = 'Sort descending'
+
+
+# --------------TOOLBAR LABELS & VARIABLES----------------
+
+BLOCKS = 'Block'
+ZOOM = 'Zoom'
+zoomValues = ['50%', '75%', '90%', '100%', '125%', '150%', '200%']
+
+
 
 
 

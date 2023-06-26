@@ -24,6 +24,9 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import logging
+logger = logging.getLogger()
+
 from .renderers import StrRenderer
 
 
@@ -49,7 +52,7 @@ class Column:
         self._renderer = renderer
 
     def __str__(self):
-        return 'Column: %s (type: %s)' % (self._name, self._renderer)
+        return 'Column: %s (renderer: %s)' % (self._name, self._renderer)
 
     def __cmp__(self, other):
         return (self.getName() == other.getName()
@@ -123,7 +126,7 @@ class Table:
         Create the page columns
         :param columns: list of the column names
         :param values: list with the first line of data in order to determinate
-                       the data type
+                       the data renderer
         """
         for i in range(len(columns)):
             self.addColumn(Column(columns[i], _guessRender(values[i])))
@@ -194,20 +197,27 @@ def _guessRender(strValue):
         return StrRenderer()
 
     try:
+        logger.debug("Trying to convert the value to an integer...")
         renderer = IntRenderer()
         renderer._render(strValue)
         return renderer
     except ValueError:
         try:
+            logger.debug("Integer conversion failed...")
+            logger.debug("Trying to convert the value to a float...")
             renderer = FloatRenderer()
             renderer._render(strValue)
             return FloatRenderer()
         except ValueError:
             try:
+                logger.debug("Float conversion failed...")
+                logger.debug("Trying to convert the value to an image...")
                 renderer = ImageRenderer()
                 renderer._render(strValue)
                 return renderer
             except Exception:
+                logger.debug("Image conversion failed...")
+                logger.debug("Trying to convert the value to a string...")
                 return StrRenderer()
 
 

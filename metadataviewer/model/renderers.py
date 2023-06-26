@@ -24,6 +24,9 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import logging
+logger = logging.getLogger()
+
 import os.path
 from functools import lru_cache
 
@@ -41,7 +44,8 @@ class IRenderer:
         try:
             return self._render(value)
         except Exception as e:
-            print(e)
+            logger.error("It is not possible to assign a renderer to this "
+                         "value. It will be rendered as a string: %s" % e)
             return str(value)
 
 

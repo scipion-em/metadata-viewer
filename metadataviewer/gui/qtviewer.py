@@ -551,7 +551,7 @@ class QTMetadataViewer(QMainWindow):
         self.exitAction.triggered.connect(sys.exit)
 
         # Display actions
-        self.table.propertiesTableAction = QAction("Columns...", self)
+        self.table.propertiesTableAction = QAction(COLUMNS, self)
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
         self.table.propertiesTableAction.setIcon(QIcon(TABLE))
@@ -559,29 +559,29 @@ class QTMetadataViewer(QMainWindow):
             self.table.propertiesTableAction.setEnabled(False)
 
         # Toolbar action
-        self.gotoTableAction = QAction("Go to TABLE view", self)
+        self.gotoTableAction = QAction(GO_TO_TABLE_VIEW, self)
         self.gotoTableAction.setIcon(QIcon(TABLE_VIEW))
         self.gotoTableAction.setEnabled(False)
         self.gotoTableAction.triggered.connect(self._loadTableView)
 
-        self.gotoGalleryAction = QAction("Go to GALLERY view", self)
+        self.gotoGalleryAction = QAction(GO_TO_GALLERY_VIEW, self)
         self.gotoGalleryAction.setIcon(QIcon(GALLERY_VIEW))
         self.gotoGalleryAction.triggered.connect(self._loadGalleryView)
 
         # Columns  Toolbar action
-        self.reduceDecimals = QAction("Reduce decimals", self)
+        self.reduceDecimals = QAction(REDUCE_DECIMALS_TEXT, self)
         self.reduceDecimals.setIcon(QIcon(REDUCE_DECIMALS))
         self.reduceDecimals.setEnabled(False)
 
-        self.increaseDecimals = QAction("Increase decimals", self)
+        self.increaseDecimals = QAction(INCREASE_DECIMALS_TEXT, self)
         self.increaseDecimals.setIcon(QIcon(INCREASE_DECIMALS))
         self.increaseDecimals.setEnabled(False)
 
-        self.sortUp = QAction("Sort ascending", self)
+        self.sortUp = QAction(SORT_ASC, self)
         self.sortUp.setIcon(QIcon(DOWN_ARROW))
         self.sortUp.triggered.connect(lambda : self.table.orderByColumn(self.table.getActualColumn(), True))
 
-        self.sortDown = QAction("Sort descending", self)
+        self.sortDown = QAction(SORT_DESC, self)
         self.sortDown.setIcon(QIcon(UP_ARROW))
         self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
 
@@ -646,10 +646,10 @@ class QTMetadataViewer(QMainWindow):
 
         self.blockLabelIcon = QLabel('\t')
         toolBar.addWidget(self.blockLabelIcon)
-        self.blockLabel = QLabel('Block')
+        self.blockLabel = QLabel(BLOCKS)
         icon = QIcon(TABLE_BLOCKS)
         self.blockLabel.setPixmap(icon.pixmap(16, 16))
-        self.blockLabel.setToolTip('Blocks')
+        self.blockLabel.setToolTip(BLOCKS)
         toolBar.addWidget(self.blockLabel)
         self.bockTableName = QComboBox()
         self.bockTableName.setFixedWidth(200)
@@ -657,7 +657,7 @@ class QTMetadataViewer(QMainWindow):
             self.bockTableName.addItem(self.tableAliases[tableName])
             # Connect signals to the methods.
         self.bockTableName.activated.connect(self.selectTable)
-        self.bockTableName.setToolTip('Blocks')
+        self.bockTableName.setToolTip(BLOCKS)
         toolBar.addWidget(self.bockTableName)
 
         # Columns tool bar
@@ -667,10 +667,9 @@ class QTMetadataViewer(QMainWindow):
         columnsToolBar2.addAction(self.reduceDecimals)
         columnsToolBar2.addAction(self.increaseDecimals)
         self.zoom = QComboBox()
-        self.zoom.setToolTip('Zoom')
+        self.zoom.setToolTip(ZOOM)
         self.zoom.setFixedWidth(70)
         self.zoom.setEnabled(False)
-        zoomValues = ['50%', '75%', '90%', '100%', '125%', '150%', '200%']
         for zoomValue in zoomValues:
             self.zoom.addItem(zoomValue)
         self.zoom.setCurrentIndex(3)

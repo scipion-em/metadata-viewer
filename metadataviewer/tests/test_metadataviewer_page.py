@@ -37,7 +37,7 @@ class TestPage(unittest.TestCase):
         columnImageName = Column('_rlnImageName', str)
 
         self.assertEqual(columnPixelSize.getName(), '_rlnPixelSize')
-        self.assertEqual(columnPixelSize.getType(), float)
+        self.assertEqual(columnPixelSize.getRenderer(), float)
         self.assertEqual(columnPixelSize.__eq__(columnImageName), False)
 
     def testTable(self):
