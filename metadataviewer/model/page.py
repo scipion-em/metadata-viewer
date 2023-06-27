@@ -25,6 +25,9 @@
 # *
 # **************************************************************************
 import logging
+
+from .constants import EXTENDED_COLUMN_NAME
+
 logger = logging.getLogger()
 
 from .renderers import StrRenderer
@@ -35,6 +38,7 @@ class Column:
         self._name = name
         self._alias = None
         self._renderer = renderer or StrRenderer
+        self._isSorteable = True
 
     def getName(self):
         return self._name
@@ -50,6 +54,12 @@ class Column:
 
     def setRenderer(self, renderer):
         self._renderer = renderer
+
+    def isSorteable(self):
+        return self._isSorteable
+
+    def setIsSorteable(self, isSorteable):
+        self._isSorteable = isSorteable
 
     def __str__(self):
         return 'Column: %s (renderer: %s)' % (self._name, self._renderer)
@@ -129,7 +139,10 @@ class Table:
                        the data renderer
         """
         for i in range(len(columns)):
-            self.addColumn(Column(columns[i], _guessRender(values[i])))
+            column = Column(columns[i], _guessRender(values[i]))
+            if column.getName() == EXTENDED_COLUMN_NAME:
+                column.setIsSorteable(False)
+            self.addColumn(column)
 
     def clear(self):
         """ Remove all columns """

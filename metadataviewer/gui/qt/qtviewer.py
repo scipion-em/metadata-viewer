@@ -758,8 +758,10 @@ class QTMetadataViewer(QMainWindow):
         self.sortDown.setEnabled(False)
 
     def enableTableOptions(self, row, column):
-        self.sortUp.setEnabled(True)
-        self.sortDown.setEnabled(True)
+        isSorteable = self.table.getColumns()[self.table.getActualColumn()].isSorteable()
+        self.sortUp.setEnabled(isSorteable)
+        self.sortDown.setEnabled(isSorteable)
+
         item = self.table.cellWidget(row, column)
         if item.widgetType() == float:
             self.reduceDecimals.setEnabled(True)
