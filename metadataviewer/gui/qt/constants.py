@@ -37,6 +37,8 @@ GALLERY_VIEW = 'gui/resources/gallery.png'
 REDUCE_DECIMALS = 'gui/resources/reducedecimals.png'
 INCREASE_DECIMALS = 'gui/resources/increasedecimals.png'
 TABLE_BLOCKS = 'gui/resources/sections.png'
+PREFERENCES = 'gui/resources/preferences.png'
+ZOOM_PLUS = 'gui/resources/zoom.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -57,9 +59,9 @@ SORT_DESC = 'Sort descending'
 
 # --------------TOOLBAR LABELS & VARIABLES----------------
 
-BLOCKS = 'Block'
-ZOOM = 'Zoom'
-zoomValues = ['50%', '75%', '90%', '100%', '125%', '150%', '200%']
+BLOCKS = 'Tables'
+ZOOM = 'Size in pixels'
+zoomSize = 100
 
 
 

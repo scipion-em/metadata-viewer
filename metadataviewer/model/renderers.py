@@ -25,6 +25,7 @@
 # *
 # **************************************************************************
 import logging
+
 logger = logging.getLogger()
 
 import os.path
@@ -78,13 +79,25 @@ class FloatRenderer(IRenderer):
     def setDecimalNumber(self, decimalNumber):
         self._decimalNumber = decimalNumber
 
+    def getDecimalsNumber(self):
+        return self._decimalNumber
+
     def renderType(self):
         return float
 
 
+class BoolRenderer(IRenderer):
+
+    def _render(self, value, size=None):
+        return value
+
+    def renderType(self):
+        return bool
+
+
 class MatrixRender(IRenderer):
 
-    def _render(self, value):
+    def _render(self, value, size=None):
         return eval(value)
 
     def renderType(self):
@@ -92,11 +105,24 @@ class MatrixRender(IRenderer):
 
 
 class ImageRenderer(IRenderer):
-    @lru_cache
+
+    def __init__(self, size=100):
+        self._size = size
+
+    def getSize(self):
+        return self._size
+
+    def setSize(self, size):
+        self._size = size
+
     def _render(self, value):
+        return self._renderWithSize(value, self._size)
+
+    @lru_cache
+    def _renderWithSize(self, value, size):
         path = os.path.abspath(value)
         image = Image.open(path)
-        image.thumbnail((70, 70))
+        image.thumbnail((size, size))
         return image
 
     def renderType(self):

@@ -29,7 +29,7 @@ import sys
 import argparse
 from PyQt5.QtWidgets import QApplication
 
-from metadataviewer.gui.qtviewer import QTMetadataViewer
+from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
 
 QT_VIEWER = 'qtviewer'
 

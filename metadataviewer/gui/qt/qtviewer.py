@@ -30,12 +30,12 @@ import sys
 from PIL import Image
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QIntValidator
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
-                             QStatusBar, QAbstractItemView)
+                             QStatusBar, QAbstractItemView, QLineEdit, QSpinBox)
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
@@ -202,13 +202,18 @@ class CustomScrollBar(QScrollBar):
 class CustomWidget(QWidget):
     def __init__(self, data, addText=False, text=""):
         super().__init__()
-
-        layout = QHBoxLayout()
-        layout.setContentsMargins(0, 0, 0, 0)
+        self._layout = QHBoxLayout()
+        self._layout.setContentsMargins(0, 0, 0, 0)
+        self._label = QLabel()
+        self._adicinalText = QLabel(text)
+        self._type = str
 
         if isinstance(data, int) or isinstance(data, float) or isinstance(data, str):
-            label = QLabel(str(data))
-            layout.addWidget(label, alignment=Qt.AlignRight)
+            if not isinstance(data, str):
+                self._type = int if isinstance(data, int) else float
+            self._label.setText(str(data))
+            self._layout.addWidget(self._label, alignment=Qt.AlignRight)
+
         else:  # Assuming the data is a file path to an image
             try:
                 im = data.convert("RGBA")
@@ -217,19 +222,24 @@ class CustomWidget(QWidget):
                                       QtGui.QImage.Format_RGBA8888)
 
                 pixmap = QPixmap.fromImage(qimage)
-                label = QLabel()
-                label.setPixmap(pixmap)
-                label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-                layout.addWidget(label)
+                self._label.setPixmap(pixmap)
+                self._label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
+                self._layout.addWidget(self._label)
+                self._type = Image
 
                 if addText:
-                    textLabel = QLabel(text)
-                    textLabel.setAlignment(Qt.AlignBottom)
-                    layout.addWidget(textLabel)
+                    self._adicinalText.setAlignment(Qt.AlignBottom)
+                    self._layout.addWidget(self._adicinalText)
             except Exception as e:
-                print("Error loading the imagen:", e)
+                print("Error loading the image:", e)
 
-        self.setLayout(layout)
+        self.setLayout(self._layout)
+
+    def widgetType(self):
+        return self._type
+
+    def widgetContent(self):
+        return self._label
 
 
 class TableView(QTableWidget):
@@ -261,8 +271,8 @@ class TableView(QTableWidget):
         self.vScrollBar = CustomScrollBar()
         self.hScrollBar = QScrollBar()
         self._createHeader()
-        columns = self.objecManager.getTable(self._tableName).getColumns()
-        self.propertiesTableDialog.registerColumns(columns)
+        self.columns = self.objecManager.getTable(self._tableName).getColumns()
+        self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
         self._fillTable()
@@ -277,6 +287,9 @@ class TableView(QTableWidget):
 
     def getTableName(self):
         return self._tableName
+
+    def getColumns(self):
+        return self.columns
 
     def orderByColumn(self, column, order):
 
@@ -368,6 +381,9 @@ class TableView(QTableWidget):
 
     def getActualColumn(self):
         return self._actualColumn
+
+    def getActualRow(self):
+        return self._actualRow
 
     def setActualRowColumn(self, row, column):
         self._actualRow = row
@@ -513,6 +529,7 @@ class QTMetadataViewer(QMainWindow):
         # Table view
         self.table = TableView(self.objecManager)
         self.table._createTable(self.tableNames[0])
+        self.table.cellClicked.connect(self._tableCellClicked)
         self._createActions()
         self._createMenuBar()
         self._createToolBars()
@@ -554,7 +571,7 @@ class QTMetadataViewer(QMainWindow):
         self.table.propertiesTableAction = QAction(COLUMNS, self)
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
-        self.table.propertiesTableAction.setIcon(QIcon(TABLE))
+        self.table.propertiesTableAction.setIcon(QIcon(PREFERENCES))
         if self._galleryView:
             self.table.propertiesTableAction.setEnabled(False)
 
@@ -572,18 +589,21 @@ class QTMetadataViewer(QMainWindow):
         self.reduceDecimals = QAction(REDUCE_DECIMALS_TEXT, self)
         self.reduceDecimals.setIcon(QIcon(REDUCE_DECIMALS))
         self.reduceDecimals.setEnabled(False)
+        self.reduceDecimals.triggered.connect(lambda:  self._redIncDecimals(True))
 
         self.increaseDecimals = QAction(INCREASE_DECIMALS_TEXT, self)
         self.increaseDecimals.setIcon(QIcon(INCREASE_DECIMALS))
         self.increaseDecimals.setEnabled(False)
+        self.increaseDecimals.triggered.connect(lambda: self._redIncDecimals(False))
 
         self.sortUp = QAction(SORT_ASC, self)
         self.sortUp.setIcon(QIcon(DOWN_ARROW))
-        self.sortUp.triggered.connect(lambda : self.table.orderByColumn(self.table.getActualColumn(), True))
+        self.sortUp.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), True))
 
         self.sortDown = QAction(SORT_DESC, self)
         self.sortDown.setIcon(QIcon(UP_ARROW))
         self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
+
 
     def _loadTableView(self):
         galleryEnable = True if self.gallery.getColumnWithImages() else False
@@ -655,6 +675,8 @@ class QTMetadataViewer(QMainWindow):
         self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
             self.bockTableName.addItem(self.tableAliases[tableName])
+        for i in range(len(self.tableNames)):
+            self.bockTableName.setItemIcon(i, QIcon(TABLE))
             # Connect signals to the methods.
         self.bockTableName.activated.connect(self.selectTable)
         self.bockTableName.setToolTip(BLOCKS)
@@ -662,18 +684,28 @@ class QTMetadataViewer(QMainWindow):
 
         # Columns tool bar
         columnsToolBar2 = self.addToolBar("")
+
+        self.zoomLabel = QLabel(ZOOM)
+        icon = QIcon(ZOOM_PLUS)
+        self.zoomLabel.setPixmap(icon.pixmap(20, 20))
+        self.zoomLabel.setToolTip(ZOOM)
+        self.zoomLabel.setEnabled(False)
+        columnsToolBar2.addWidget(self.zoomLabel)
+        self.zoom = QSpinBox()
+        self.zoom.setMaximum(2000)
+        self.zoom.setMinimum(50)
+        self.zoom.setValue(100)
+        self.zoom.setToolTip(ZOOM)
+        self.zoom.setFixedWidth(70)
+        self.zoom.setAlignment(Qt.AlignRight)
+        self.zoom.setEnabled(False)
+        columnsToolBar2.addWidget(self.zoom)
+        self.zoom.valueChanged.connect(self._renderImage)
+
         columnsToolBar2.addAction(self.sortUp)
         columnsToolBar2.addAction(self.sortDown)
         columnsToolBar2.addAction(self.reduceDecimals)
         columnsToolBar2.addAction(self.increaseDecimals)
-        self.zoom = QComboBox()
-        self.zoom.setToolTip(ZOOM)
-        self.zoom.setFixedWidth(70)
-        self.zoom.setEnabled(False)
-        for zoomValue in zoomValues:
-            self.zoom.addItem(zoomValue)
-        self.zoom.setCurrentIndex(3)
-        columnsToolBar2.addWidget(self.zoom)
 
     def toggleColumn(self, table_view, column):
         self.table.setColumnHidden(column,
@@ -699,5 +731,39 @@ class QTMetadataViewer(QMainWindow):
 
             self._rowsCount = self.objecManager.getTableRowCount(tableName)
             self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
+
+    def _tableCellClicked(self, row, column):
+        item = self.table.cellWidget(row, column)
+        if item.widgetType() == float:
+           self.reduceDecimals.setEnabled(True)
+           self.increaseDecimals.setEnabled(True)
+        else:
+            self.reduceDecimals.setEnabled(False)
+            self.increaseDecimals.setEnabled(False)
+
+        if item.widgetType() == Image:
+            self.zoom.setEnabled(True)
+            self.zoomLabel.setEnabled(True)
+        else:
+            self.zoom.setEnabled(False)
+            self.zoomLabel.setEnabled(False)
+
+    def _renderImage(self):
+        column = self.table.getActualColumn()
+        row = self.table.getActualRow()
+        self.table.getColumns()[column].getRenderer().setSize(self.zoom.value())
+        self.table.setRowHeight(row, self.zoom.value())
+        self.table._loadRows()
+
+    def _redIncDecimals(self, flag):
+        column = self.table.getActualColumn()
+        decimals = self.table.getColumns()[column].getRenderer().getDecimalsNumber()
+        if decimals > 1:
+            redInc = -1 if flag else 1
+            self.table.getColumns()[column].getRenderer().setDecimalNumber(decimals + redInc)
+            self.table._loadRows()
+
+
+
 
 
