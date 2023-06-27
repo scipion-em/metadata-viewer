@@ -291,6 +291,12 @@ class TableView(QTableWidget):
     def getColumns(self):
         return self.columns
 
+    def getColumnWithImages(self):
+        for i, col in enumerate(self.columns):
+            if col.getRenderer().renderType() == Image:
+                return i
+        return None
+
     def orderByColumn(self, column, order):
 
         self._orderAsc = order
@@ -413,12 +419,16 @@ class GalleryView(QTableWidget):
     def setTableName(self, tableName):
         self._tableName = tableName
 
+    def getColumns(self):
+        return self._columns
+
     def _createGallery(self, tableName):
         # Creating the gallery
         self._tableName = tableName
         self.setColumnCount(30)
         self._tableSize = self.objecManager.getTableRowCount(self._tableName)
         self._columnsCount = self._calculateVisibleColumns()
+        self._columnWithImages = self.getColumnWithImages()
         self._rowsCount = int(self._tableSize / self._columnsCount) + 1
         self.setRowCount(self._rowsCount)
         self.setColumnCount(self._columnsCount)
@@ -467,7 +477,6 @@ class GalleryView(QTableWidget):
         self.setColumnCount(self._columnsCount)
         self.setRowCount(self._rowsCount)
         countImages = 0
-        self._columnWithImages = self.getColumnWithImages()
         if self._columnWithImages:
             for row in range(visibleRows):
                 for col in range(self._columnsCount):
@@ -493,19 +502,18 @@ class GalleryView(QTableWidget):
 
     def resizeEvent(self, event):
         if self._triggeredResize:
-            super().resizeEvent(event)
             # Initializating with a large number of columns. It is useful for
             # the method that calculates the visible columns
             self.setColumnCount(20)
             self._columnsCount = self._calculateVisibleColumns() - 1
-            # Verifying that there is at least one column
-            if self._columnsCount < 1:
-                self._columnsCount = 1
+            # Verifying that there is at least five column
+            if self._columnsCount < 5:
+                self._columnsCount = 5
             self.setColumnCount(self._columnsCount)
             self._rowsCount = int(self._rowsCount / self._columnsCount)
             # Verifying that there is at least one row
-            if self._rowsCount < 1:
-                self._rowsCount = 1
+            if self._rowsCount < 5:
+                self._rowsCount = 5
             self._loadImages()
         self._triggeredResize = True
 
@@ -523,6 +531,7 @@ class QTMetadataViewer(QMainWindow):
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
         self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 800, 400)
+        self.setMinimumSize(800, 400)
         self._tableView = args.tableview
         self._galleryView = args.galleryview
 
@@ -604,8 +613,13 @@ class QTMetadataViewer(QMainWindow):
         self.sortDown.setIcon(QIcon(UP_ARROW))
         self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
 
-
     def _loadTableView(self):
+        self._galleryView = False
+        self._tableView = True
+        self.zoom.setValue(100)
+        row = self.table.getActualRow()
+        column = self.table.getActualColumn()
+        self.enableTableOptions(row, column)
         galleryEnable = True if self.gallery.getColumnWithImages() else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
         self.gotoTableAction.setEnabled(False)
@@ -615,10 +629,11 @@ class QTMetadataViewer(QMainWindow):
         self.table.setVisible(True)
         self.setCentralWidget(self.table)
         self.bockTableName.setEnabled(True)
-        self._galleryView = False
-        self._tableView = True
 
     def _loadGalleryView(self):
+        self._galleryView = True
+        self._tableView = False
+        self.enableGalleryOption()
         self.gotoTableAction.setEnabled(True)
         self.gotoGalleryAction.setEnabled(False)
         widget = self.takeCentralWidget()
@@ -628,8 +643,6 @@ class QTMetadataViewer(QMainWindow):
         self.gallery.setTableName(tableName)
         self.gallery.setVisible(True)
         self.setCentralWidget(self.gallery)
-        self._galleryView = True
-        self._tableView = False
 
     def _createMenuBar(self):
         # Creating the menu
@@ -733,10 +746,24 @@ class QTMetadataViewer(QMainWindow):
             self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
 
     def _tableCellClicked(self, row, column):
+        self.enableTableOptions(row, column)
+
+    def enableGalleryOption(self):
+        self.zoom.setValue(100)
+        self.zoom.setEnabled(True)
+        self.zoomLabel.setEnabled(True)
+        self.reduceDecimals.setEnabled(False)
+        self.increaseDecimals.setEnabled(False)
+        self.sortUp.setEnabled(False)
+        self.sortDown.setEnabled(False)
+
+    def enableTableOptions(self, row, column):
+        self.sortUp.setEnabled(True)
+        self.sortDown.setEnabled(True)
         item = self.table.cellWidget(row, column)
         if item.widgetType() == float:
-           self.reduceDecimals.setEnabled(True)
-           self.increaseDecimals.setEnabled(True)
+            self.reduceDecimals.setEnabled(True)
+            self.increaseDecimals.setEnabled(True)
         else:
             self.reduceDecimals.setEnabled(False)
             self.increaseDecimals.setEnabled(False)
@@ -748,12 +775,21 @@ class QTMetadataViewer(QMainWindow):
             self.zoom.setEnabled(False)
             self.zoomLabel.setEnabled(False)
 
+    def _galleryCellClicked(self):
+        self.enableGalleryOption()
+
     def _renderImage(self):
-        column = self.table.getActualColumn()
         row = self.table.getActualRow()
-        self.table.getColumns()[column].getRenderer().setSize(self.zoom.value())
-        self.table.setRowHeight(row, self.zoom.value())
-        self.table._loadRows()
+        if self._tableView:
+            column = self.table.getColumnWithImages()
+            self.table.getColumns()[column].getRenderer().setSize(self.zoom.value())
+            self.table.setRowHeight(row, self.zoom.value())
+            self.table._loadRows()
+        if self._galleryView:
+            column = self.gallery.getColumnWithImages()
+            self.gallery.getColumns()[column].getRenderer().setSize(self.zoom.value())
+            self.gallery.setRowHeight(row, self.zoom.value())
+            self.gallery._loadImages()
 
     def _redIncDecimals(self, flag):
         column = self.table.getActualColumn()
