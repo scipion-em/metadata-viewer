@@ -28,3 +28,4 @@
 
 EXTENDED_COLUMN_NAME = '_index@_filename'
 ENABLED_COLUMN = 'enabled'
+IMAGE_DEFAULT_SIZE = 150

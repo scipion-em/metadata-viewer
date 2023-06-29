@@ -28,6 +28,8 @@ import logging
 
 import numpy as np
 
+from .constants import IMAGE_DEFAULT_SIZE
+
 logger = logging.getLogger()
 
 import os.path
@@ -155,7 +157,7 @@ class MRCImageReader(ImageReader):
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
-        return ['mrc', 'mrcs']
+        return ['mrc', 'mrcs', 'em']
 
 
 class STKImageReader(ImageReader):
@@ -256,13 +258,13 @@ class STKImageReader(ImageReader):
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
-        return ['stk']
+        return ['stk', 'vol']
 
 
 class ImageRenderer(IRenderer):
     _imageReaders = []
 
-    def __init__(self, size=100):
+    def __init__(self, size=IMAGE_DEFAULT_SIZE):
         self._size = size
 
     def getSize(self):

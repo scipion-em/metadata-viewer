@@ -61,7 +61,7 @@ SORT_DESC = 'Sort descending'
 
 BLOCKS = 'Tables'
 ZOOM = 'Size in pixels'
-zoomSize = 100
+zoomSize = 150
 
 
 
