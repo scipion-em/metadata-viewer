@@ -29,15 +29,13 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QSize
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QIntValidator, QPalette, \
-    QColor
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
-                             QStatusBar, QAbstractItemView, QLineEdit, QSpinBox,
-                             QSizePolicy)
+                             QStatusBar, QAbstractItemView, QSpinBox)
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
@@ -255,8 +253,8 @@ class TableView(QTableWidget):
     def __init__(self, objectManager):
         super().__init__()
         self.propertiesTableDialog = ColumnPropertiesTable(self, self)
-        self._pageNumber = 1
-        self._pageSize = 50
+        self._pageNumber = 1  # First page
+        self._pageSize = ZOOM_SIZE
         self._actualRow = 0
         self._actualColumn = 0
         self.oldColumn = None
@@ -264,6 +262,7 @@ class TableView(QTableWidget):
         self.objecManager = objectManager
         self.cellClicked.connect(self.setActualRowColumn)
         self.horizontalHeader().sectionClicked.connect(self.setActualColumn)
+        self._oldzoom = ZOOM_SIZE
 
     def _createTable(self, tableName):
         # Creating the table
@@ -289,7 +288,6 @@ class TableView(QTableWidget):
         self.vScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.hScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.setCurrentCell(0, 0)
-        self._oldzoom = zoomSize
 
     def getOldZoom(self):
         return self._oldzoom
@@ -313,7 +311,6 @@ class TableView(QTableWidget):
         return None
 
     def orderByColumn(self, column, order):
-
         self._orderAsc = order
         if self.oldColumn is not None:
             self.horizontalHeaderItem(self.oldColumn).setIcon(QIcon(None))
@@ -347,8 +344,8 @@ class TableView(QTableWidget):
         self.setColumnCount(len(columns))
         self.setRowCount(self._rowsCount)
         # Set prototype item to improve loading speed
-        prototype_item = QTableWidgetItem()
-        self.setItemPrototype(prototype_item)
+        # prototype_item = QTableWidgetItem()
+        # self.setItemPrototype(prototype_item)
         self._loadRows()
 
     def _calculateVisibleColumns(self):
@@ -433,6 +430,7 @@ class GalleryView(QTableWidget):
         self._columnWithImages = self.getColumnWithImages()
         self.cellClicked.connect(self.setActualRowColumn)
         self.setGeometry(0, 0, 600, 600)
+        self._oldzoom = ZOOM_SIZE
 
     def setTableName(self, tableName):
         self._tableName = tableName
@@ -462,7 +460,6 @@ class GalleryView(QTableWidget):
         self.setVerticalScrollBar(self.vScrollBar)
         self.vScrollBar.valueChanged.connect(self._loadImages)
         self._triggeredResize = False
-        self._oldzoom = 150
 
     def getOldZoom(self):
         return self._oldzoom
@@ -568,7 +565,7 @@ class QTMetadataViewer(QMainWindow):
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
         self.tableAliases = self.objecManager.getTableAliases()
-        self._pageSize = 50
+        self._pageSize = PAGE_SIZE
         self._triggeredResize = False
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
         self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
@@ -683,6 +680,7 @@ class QTMetadataViewer(QMainWindow):
     def _loadTableView(self):
         self._galleryView = False
         self._tableView = True
+        self.table.setActualRowColumn(0, 0)
         row = self.table.getActualRow()
         column = self.table.getActualColumn()
         self.enableTableOptions(row, column)
@@ -716,7 +714,7 @@ class QTMetadataViewer(QMainWindow):
             if alias == tableName:
                 tableName = table
                 break
-        self.gallery.setTableName(tableName)
+        self.gallery._createGallery(tableName)
         self.gallery.setVisible(True)
         self.setCentralWidget(self.gallery)
         self.gallery._loadImages()
@@ -783,8 +781,8 @@ class QTMetadataViewer(QMainWindow):
         columnsToolBar2.addWidget(self.zoomLabel)
         self.zoom = QSpinBox()
         self.zoom.setMaximum(2000)
-        self.zoom.setMinimum(zoomSize)
-        self.zoom.setValue(zoomSize)
+        self.zoom.setMinimum(ZOOM_SIZE)
+        self.zoom.setValue(ZOOM_SIZE)
         self.zoom.setToolTip(ZOOM)
         self.zoom.setFixedWidth(70)
         self.zoom.setAlignment(Qt.AlignRight)
@@ -811,8 +809,11 @@ class QTMetadataViewer(QMainWindow):
         if tableName != self.table.getTableName():
             self.table.setTableName(tableName)
             self.gallery.setTableName(tableName)
-            self.table._createTable(tableName)
-            self.gallery._createGallery(tableName)
+            if self._tableView:
+                self.table._createTable(tableName)
+            else:
+                self.gallery._createGallery(tableName)
+
             galleryEnable = True if self.gallery.getColumnWithImages() else False
             if galleryEnable:
                 self.gotoGalleryAction.setEnabled(True)
@@ -880,8 +881,8 @@ class QTMetadataViewer(QMainWindow):
     def _redIncDecimals(self, flag):
         column = self.table.getActualColumn()
         decimals = self.table.getColumns()[column].getRenderer().getDecimalsNumber()
-        if decimals > 1:
-            redInc = -1 if flag else 1
+        redInc = -1 if flag else 1
+        if decimals + redInc > 0:
             self.table.getColumns()[column].getRenderer().setDecimalNumber(decimals + redInc)
             self.table._loadRows()
 
