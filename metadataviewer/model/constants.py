@@ -27,3 +27,4 @@
 
 
 EXTENDED_COLUMN_NAME = '_index@_filename'
+ENABLED_COLUMN = 'enabled'

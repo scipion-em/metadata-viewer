@@ -26,12 +26,17 @@
 # **************************************************************************
 import logging
 
+import imageio
+import numpy as np
+
 logger = logging.getLogger()
 
 import os.path
 from functools import lru_cache
 
 from PIL import Image
+import mrcfile, tifffile
+import matplotlib.pyplot as plt
 from abc import abstractmethod
 
 
@@ -48,6 +53,10 @@ class IRenderer:
             logger.error("It is not possible to assign a renderer to this "
                          "value. It will be rendered as a string: %s" % e)
             return str(value)
+
+    @abstractmethod
+    def renderType(self):
+        pass
 
 
 class StrRenderer(IRenderer):
@@ -70,7 +79,7 @@ class IntRenderer(IRenderer):
 
 class FloatRenderer(IRenderer):
 
-    def __init__(self, decimalNumber : int = 4):
+    def __init__(self, decimalNumber: int = 4):
         self._decimalNumber = decimalNumber
 
     def _render(self, value):
@@ -88,8 +97,8 @@ class FloatRenderer(IRenderer):
 
 class BoolRenderer(IRenderer):
 
-    def _render(self, value, size=None):
-        return value
+    def _render(self, value):
+        return bool(value)
 
     def renderType(self):
         return bool
@@ -97,20 +106,170 @@ class BoolRenderer(IRenderer):
 
 class MatrixRender(IRenderer):
 
-    def _render(self, value, size=None):
+    def _render(self, value):
         return eval(value)
 
     def renderType(self):
         return list
 
 
+class ImageReader:
+    @abstractmethod
+    def open(self, path):
+        pass
+
+    @abstractmethod
+    def getCompatibleFileTypes(self) -> list:
+        pass
+
+
+class PILImageReader(ImageReader):
+    @classmethod
+    def open(cls, path):
+        path = os.path.abspath(path)
+        image = Image.open(path)
+        return image
+
+    @classmethod
+    def getCompatibleFileTypes(cls) -> list:
+        return ['jpg', 'png']
+
+
+class MRCImageReader(ImageReader):
+    @classmethod
+    def open(cls, path):
+        mrc_img = mrcfile.open(path, permissive=True)
+        if mrc_img.is_volume():
+            imageArray = mrc_img.data[0, :, :]
+        else:
+            imageArray = mrc_img.data
+        return Image.fromarray(imageArray)
+
+    @classmethod
+    def getCompatibleFileTypes(cls) -> list:
+        return ['mrc']
+
+
+class STKImageReader(ImageReader):
+    IMG_BYTES = None
+    stk_handler = None
+    header_info = None
+    HEADER_OFFSET = 1024
+    FLOAT32_BYTES = 4
+    TYPE = None
+
+    @classmethod
+    def open(cls, path):
+        stk = path.split('@')
+        if len(stk) > 1:
+            image = cls.read(stk[-1], int(stk[0]))
+            return image
+        raise Exception('Can not renderer this image.')
+
+    @classmethod
+    def read(cls, filename, id):
+        """
+        Reads a given image
+           :param filename (str) --> Image to be read
+        """
+        cls.stk_handler = open(filename, "rb")
+        cls.header_info = cls.readHeader()
+        cls.IMG_BYTES = cls.FLOAT32_BYTES * cls.header_info["n_columns"] ** 2
+        image = cls.readImage(id - 1)
+        iMax = image.max()
+        iMin = image.min()
+        image = ((image - iMin) / (iMax - iMin) * 255).astype('uint8')
+        image = Image.fromarray(image)
+        return image
+
+    @classmethod
+    def readHeader(cls):
+        """
+        Reads the header of the current file as a dictionary
+            :returns The current header as a dictionary
+        """
+        header = cls.readNumpy(0, cls.HEADER_OFFSET)
+
+        header = dict(img_size=int(header[1]), n_images=int(header[25]),
+                      offset=int(header[21]),
+                      n_rows=int(header[1]), n_columns=int(header[11]),
+                      n_slices=int(header[0]),
+                      sr=float(header[20]))
+
+        cls.TYPE = "stack" if header["n_images"] > 1 else "volume"
+
+        return header
+
+    @classmethod
+    def readNumpy(cls, start, end):
+        """
+        Read bytes between start and end as a Numpy array
+            :param start (int) --> Start byte
+            :param end (int) --> End byte
+            :returns decoded bytes as Numpy array
+        """
+        return np.frombuffer(cls.readBinary(start, end), dtype=np.float32)
+
+    @classmethod
+    def readBinary(cls, start, end):
+        """
+        Read bytes between start and end
+            :param start (int) --> Start byte
+            :param end (int) --> End byte
+            :returns the bytes read
+        """
+        cls.seek(start)
+        return cls.stk_handler.read(end)
+
+    @classmethod
+    def readImage(cls, iid):
+        """
+        Reads a given image in the stack according to its ID
+            :param iid (int) --> Image id to be read
+            :returns Image as Numpy array
+        """
+
+        if cls.TYPE == "stack":
+            start = 2 * cls.header_info["offset"] + iid * (
+                    cls.IMG_BYTES + cls.header_info["offset"])
+        else:
+            start = cls.header_info["offset"] + iid * cls.IMG_BYTES
+
+        img_size = cls.header_info["n_columns"]
+        return cls.readNumpy(start, cls.IMG_BYTES).reshape([img_size, img_size])
+
+    @classmethod
+    def seek(cls, pos):
+        """
+        Move file pointer to a given position
+            :param pos (int) --> Byte to move the pointer to
+        """
+        cls.stk_handler.seek(pos)
+
+    @classmethod
+    def getCompatibleFileTypes(cls) -> list:
+        return ['stk']
+
+
 class ImageRenderer(IRenderer):
+    _imageReaders = []
 
     def __init__(self, size=100):
         self._size = size
 
     def getSize(self):
         return self._size
+
+    @classmethod
+    def _registerImageReader(cls, imageReader):
+        cls._imageReaders.append(imageReader)
+
+    @classmethod
+    def getImageReader(cls, path):
+        ext = os.path.basename(path).split('.')[-1]
+        for imageReader in cls._imageReaders:
+            if ext in imageReader.getCompatibleFileTypes():
+                return imageReader
 
     def setSize(self, size):
         self._size = size
@@ -120,10 +279,15 @@ class ImageRenderer(IRenderer):
 
     @lru_cache
     def _renderWithSize(self, value, size):
-        path = os.path.abspath(value)
-        image = Image.open(path)
-        image.thumbnail((size, size))
-        return image
+        imageReader = self.getImageReader(value)
+        image = imageReader.open(value)
+        imageR = image.resize((size, size))
+        imageR.thumbnail((size, size))
+        return imageR
 
     def renderType(self):
         return Image
+
+ImageRenderer._registerImageReader(PILImageReader)
+ImageRenderer._registerImageReader(MRCImageReader)
+ImageRenderer._registerImageReader(STKImageReader)

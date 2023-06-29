@@ -1,3 +1,5 @@
 pyqt5==5.15.9
 Pillow==9.5.0
 mrcfile==1.4.3
+tifffile==2023.4.12
+imageio==2.31.1

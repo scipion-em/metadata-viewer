@@ -26,11 +26,12 @@
 # **************************************************************************
 import logging
 
-from .constants import EXTENDED_COLUMN_NAME
+from .constants import EXTENDED_COLUMN_NAME, ENABLED_COLUMN
 
 logger = logging.getLogger()
 
-from .renderers import StrRenderer
+from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, BoolRenderer,
+                        MatrixRender, StrRenderer)
 
 
 class Column:
@@ -140,6 +141,9 @@ class Table:
         """
         for i in range(len(columns)):
             column = Column(columns[i], _guessRender(values[i]))
+            if column.getName() == ENABLED_COLUMN:
+                column.setRenderer(BoolRenderer())
+                column.setIsSorteable(False)
             if column.getName() == EXTENDED_COLUMN_NAME:
                 column.setIsSorteable(False)
             self.addColumn(column)
@@ -203,8 +207,6 @@ class Page:
 # --------- Helper functions  ------------------------
 
 def _guessRender(strValue):
-    from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, MatrixRender,
-        StrRenderer)
 
     if strValue is None:
         return StrRenderer()

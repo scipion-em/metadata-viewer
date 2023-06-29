@@ -110,7 +110,7 @@ class SqliteFile(IDAO):
                 return i
         return None
 
-    def fillTable(self, table):
+    def updateExtendColumn(self, table):
         tableName = table.getName()
         colNames = self._labels[tableName]
         indexCol = self.findColbyName(colNames, '_index')
@@ -123,13 +123,19 @@ class SqliteFile(IDAO):
             self._extendedColumn = indexCol, representativeCol
         else:
             indexCol = self.findColbyName(colNames, '_representative._index')
-            representativeCol = self.findColbyName(colNames, '_representative._filename')
+            representativeCol = self.findColbyName(colNames,
+                                                   '_representative._filename')
             if indexCol and representativeCol:
                 logger.debug("The columns _representative._index and "
                              "_representative._filename have been found. "
                              "We will proceed to create a new column with the "
                              "values of these columns.")
                 self._extendedColumn = indexCol, representativeCol
+
+    def fillTable(self, table):
+        tableName = table.getName()
+        colNames = self._labels[tableName]
+        self.updateExtendColumn(table)
 
         values = list(self.getTableRow(tableName, 0,
                                        classes=self._tables[tableName]).values())
@@ -152,6 +158,7 @@ class SqliteFile(IDAO):
 
         column = self._labels[tableName][actualColumn]
         mode = 'ASC' if orderAsc else 'DESC'
+        self.updateExtendColumn(page.getTable())
 
         for row in self.iterTable(tableName, start=firstRow, limit=limit,
                                   orderBy=column, mode=mode):

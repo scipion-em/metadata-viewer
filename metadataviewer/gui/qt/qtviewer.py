@@ -29,13 +29,15 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QIntValidator
+from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QIntValidator, QPalette, \
+    QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
-                             QStatusBar, QAbstractItemView, QLineEdit, QSpinBox)
+                             QStatusBar, QAbstractItemView, QLineEdit, QSpinBox,
+                             QSizePolicy)
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
@@ -208,7 +210,13 @@ class CustomWidget(QWidget):
         self._adicinalText = QLabel(text)
         self._type = str
 
-        if isinstance(data, int) or isinstance(data, float) or isinstance(data, str):
+        if isinstance(data, bool):
+            self._label = QCheckBox()
+            self._label.setChecked(data)
+            self._label.setEnabled(False)
+            self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
+
+        elif isinstance(data, int) or isinstance(data, float) or isinstance(data, str):
             if not isinstance(data, str):
                 self._type = int if isinstance(data, int) else float
             self._label.setText(str(data))
@@ -413,7 +421,10 @@ class GalleryView(QTableWidget):
         self._tableName = table.getName()
         self._tableAlias = table.getAlias()
         self._columns = self.objecManager.getTable(self._tableName).getColumns()
+        self._actualRow = 0
+        self._actualColumn = 0
         self._columnWithImages = self.getColumnWithImages()
+        self.cellClicked.connect(self.setActualRowColumn)
         self.setGeometry(0, 0, 600, 600)
 
     def setTableName(self, tableName):
@@ -484,11 +495,16 @@ class GalleryView(QTableWidget):
                         break
                     values = rows[countImages]
                     item = self._columns[self._columnWithImages].getRenderer().render(values.getValues()[self._columnWithImages])
-                    widget = CustomWidget(item, True, str(seekFirstImage + countImages + 1))
+                    widget = CustomWidget(item, False, str(seekFirstImage + countImages + 1))
                     self.setCellWidget(currentValue + row, col, widget)
+
                     self.resizeColumnToContents(col)
+                    size = self.columnWidth(col)
+                    self.setColumnWidth(col, size + 5)
                     countImages += 1
                 self.resizeRowToContents(currentValue + row)
+                size = self.rowHeight(currentValue + row)
+                self.setRowHeight(currentValue + row, size + 5)
                 if seekFirstImage + countImages == self._tableSize:
                     break
 
@@ -500,22 +516,34 @@ class GalleryView(QTableWidget):
         rows = self.objecManager.getRows(self._tableName, seekFirstImage, seekLastImage)
         self._addImages(rows, currentValue, visibleRows, seekFirstImage)
 
+    def _update(self):
+        # Initializating with a large number of columns. It is useful for
+        # the method that calculates the visible columns
+        self.setColumnCount(50)
+        self._columnsCount = self._calculateVisibleColumns() - 1
+        # Verifying that there is at least five column
+        if self._columnsCount < 5:
+            self._columnsCount = 5
+        self.setColumnCount(self._columnsCount)
+        self._rowsCount = int(self._rowsCount / self._columnsCount)
+        # Verifying that there is at least one row
+        if self._rowsCount < 5:
+            self._rowsCount = 5
+        self._loadImages()
+
     def resizeEvent(self, event):
         if self._triggeredResize:
-            # Initializating with a large number of columns. It is useful for
-            # the method that calculates the visible columns
-            self.setColumnCount(20)
-            self._columnsCount = self._calculateVisibleColumns() - 1
-            # Verifying that there is at least five column
-            if self._columnsCount < 5:
-                self._columnsCount = 5
-            self.setColumnCount(self._columnsCount)
-            self._rowsCount = int(self._rowsCount / self._columnsCount)
-            # Verifying that there is at least one row
-            if self._rowsCount < 5:
-                self._rowsCount = 5
-            self._loadImages()
+            self._update()
         self._triggeredResize = True
+
+    def setActualRowColumn(self, row, column):
+        self.setStyleSheet("""
+                            QTableWidget::item:selected {
+                                border: 1.5px dashed red;
+                            }
+                        """)
+        self._actualRow = row
+        self._actualColumn = column
 
 
 class QTMetadataViewer(QMainWindow):
@@ -534,6 +562,9 @@ class QTMetadataViewer(QMainWindow):
         self.setMinimumSize(800, 400)
         self._tableView = args.tableview
         self._galleryView = args.galleryview
+        self._darktheme = args.darktheme
+        if self._darktheme:
+            self.setDarkTheme()
 
         # Table view
         self.table = TableView(self.objecManager)
@@ -552,6 +583,28 @@ class QTMetadataViewer(QMainWindow):
             self._loadGalleryView()
         else:
             self._loadTableView()
+
+    def setDarkTheme(self):
+        # Dark theme
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        palette.setColor(QPalette.WindowText, Qt.white)
+        palette.setColor(QPalette.Base, QColor(25, 25, 25))
+        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ToolTipBase, Qt.white)
+        palette.setColor(QPalette.ToolTipText, Qt.white)
+        palette.setColor(QPalette.Text, Qt.white)
+        palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ButtonText, Qt.white)
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.HighlightedText, Qt.black)
+        self.setPalette(palette)
+
+    def setLightTheme(self):
+        # default theme
+        self.setPalette(self.style().standardPalette())
 
     def resizeEvent(self, event):
         if self._triggeredResize:
@@ -623,16 +676,20 @@ class QTMetadataViewer(QMainWindow):
         galleryEnable = True if self.gallery.getColumnWithImages() else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
         self.gotoTableAction.setEnabled(False)
+        newTableSize = self.size()
         widget = self.takeCentralWidget()
         if widget:
             self.gallery = widget
         self.table.setVisible(True)
+        self.table.resize(newTableSize.width(), newTableSize.height())
         self.setCentralWidget(self.table)
         self.bockTableName.setEnabled(True)
+        self.table._loadRows()
 
     def _loadGalleryView(self):
         self._galleryView = True
         self._tableView = False
+        self.zoom.setValue(100)
         self.enableGalleryOption()
         self.gotoTableAction.setEnabled(True)
         self.gotoGalleryAction.setEnabled(False)
@@ -640,6 +697,10 @@ class QTMetadataViewer(QMainWindow):
         if widget:
             self.table = widget
         tableName = self.bockTableName.currentText()
+        for table, alias in self.tableAliases.items():
+            if alias == tableName:
+                tableName = table
+                break
         self.gallery.setTableName(tableName)
         self.gallery.setVisible(True)
         self.setCentralWidget(self.gallery)
@@ -781,7 +842,7 @@ class QTMetadataViewer(QMainWindow):
         self.enableGalleryOption()
 
     def _renderImage(self):
-        row = self.table.getActualRow()
+        row = 0
         if self._tableView:
             column = self.table.getColumnWithImages()
             self.table.getColumns()[column].getRenderer().setSize(self.zoom.value())

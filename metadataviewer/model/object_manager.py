@@ -58,7 +58,7 @@ class ObjectManager:
     def selectDAO(self):
         for dao in self._registeredDAO:
             instance = dao(self._fileName)
-            ext = os.path.basename(self._fileName).split('.')[1]
+            ext = os.path.basename(self._fileName).split('.')[-1]
             if ext in instance.getCompatibleFileTypes():
                  self._dao = instance
                  break
