@@ -26,7 +26,6 @@
 # **************************************************************************
 import logging
 
-import imageio
 import numpy as np
 
 logger = logging.getLogger()
@@ -35,8 +34,7 @@ import os.path
 from functools import lru_cache
 
 from PIL import Image
-import mrcfile, tifffile
-import matplotlib.pyplot as plt
+import mrcfile
 from abc import abstractmethod
 
 
@@ -138,16 +136,26 @@ class PILImageReader(ImageReader):
 class MRCImageReader(ImageReader):
     @classmethod
     def open(cls, path):
-        mrc_img = mrcfile.open(path, permissive=True)
-        if mrc_img.is_volume():
-            imageArray = mrc_img.data[0, :, :]
-        else:
-            imageArray = mrc_img.data
-        return Image.fromarray(imageArray)
+        filePath = path.split('@')
+        if len(filePath) > 1:
+            index = int(filePath[0])
+            fileName = filePath[-1]
+            mrc_img = mrcfile.open(fileName, permissive=True)
+            if mrc_img.is_volume():
+                imfloat = mrc_img.data[0, :, :]
+            else:
+                imfloat = mrc_img.data
+
+            iMax = imfloat.max()
+            iMin = imfloat.min()
+            im255 = ((imfloat - iMin) / (iMax - iMin) * 255).astype(np.uint8)
+            img = Image.fromarray(im255[index-1])
+
+            return img
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
-        return ['mrc']
+        return ['mrc', 'mrcs']
 
 
 class STKImageReader(ImageReader):
