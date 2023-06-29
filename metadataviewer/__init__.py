@@ -40,6 +40,7 @@ def defineArgs():
     parser.add_argument("--viewer", help="Select a viewer implementation (qtviewer, tkviewer, terminal)", default=QT_VIEWER)
     parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
     parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
+    parser.add_argument("--darktheme", help="Load the viewer with a dark theme", action="store_true", default=False)
     return parser
 
 

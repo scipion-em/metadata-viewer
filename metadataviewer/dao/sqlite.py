@@ -32,6 +32,8 @@ from functools import lru_cache
 import sqlite3
 from .model import IDAO
 
+EXTENDED_COLUMN_NAME = '_index@_filename'
+
 
 class SqliteFile(IDAO):
     """  Class to manipulate Scipion Sqlite files. """
@@ -46,6 +48,7 @@ class SqliteFile(IDAO):
         self._labelsTypes = {}
         self._aliases = {}
         self._columnsMap = {}
+        self._extendedColumn = None
 
     def __loadDB(self, sqliteFile):
         try:
@@ -54,6 +57,9 @@ class SqliteFile(IDAO):
             logger.error("The file could not be opened. Make sure the path is "
                          "correct: \n %s" % e)
             return None
+
+    def hasExtendedColumn(self):
+        return self._extendedColumn is not None
 
     def composeDataTables(self, tablesNames):
         tablesNames = sorted(tablesNames)
@@ -98,11 +104,44 @@ class SqliteFile(IDAO):
 
         return self._names
 
+    def findColbyName(self, colNames, colName):
+        for i, col in enumerate(colNames):
+            if colName == col:
+                return i
+        return None
+
+    def updateExtendColumn(self, table):
+        tableName = table.getName()
+        colNames = self._labels[tableName]
+        indexCol = self.findColbyName(colNames, '_index')
+        representativeCol = self.findColbyName(colNames, '_filename')
+
+        if indexCol and representativeCol:
+            logger.debug("The columns _index and _filename have been found. "
+                         "We will proceed to create a new column with the "
+                         "values of these columns.")
+            self._extendedColumn = indexCol, representativeCol
+        else:
+            indexCol = self.findColbyName(colNames, '_representative._index')
+            representativeCol = self.findColbyName(colNames,
+                                                   '_representative._filename')
+            if indexCol and representativeCol:
+                logger.debug("The columns _representative._index and "
+                             "_representative._filename have been found. "
+                             "We will proceed to create a new column with the "
+                             "values of these columns.")
+                self._extendedColumn = indexCol, representativeCol
+
     def fillTable(self, table):
         tableName = table.getName()
         colNames = self._labels[tableName]
+        self.updateExtendColumn(table)
+
         values = list(self.getTableRow(tableName, 0,
                                        classes=self._tables[tableName]).values())
+        if self._extendedColumn:
+            colNames.insert(self._extendedColumn[1] + 1, EXTENDED_COLUMN_NAME)
+            values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + values[self._extendedColumn[1]])
         table.createColumns(colNames, values)
         table.setAlias(self._aliases[tableName])
 
@@ -119,13 +158,19 @@ class SqliteFile(IDAO):
 
         column = self._labels[tableName][actualColumn]
         mode = 'ASC' if orderAsc else 'DESC'
+        self.updateExtendColumn(page.getTable())
 
         for row in self.iterTable(tableName, start=firstRow, limit=limit,
                                   orderBy=column, mode=mode):
             if row:
                 if 'id' in row.keys():
                     id = row['id']
-                    page.addRow((int(id), list(row.values())))
+                    values = list(row.values())
+                    # Checking if exists an extended column
+                    if self.hasExtendedColumn():
+                        values.insert(self._extendedColumn[1] + 1,
+                                      str(values[self._extendedColumn[0]]) + '@' + values[self._extendedColumn[1]])
+                    page.addRow((int(id), values))
 
     @lru_cache
     def getTableRowCount(self, tableName):

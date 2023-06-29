@@ -30,12 +30,12 @@ import sys
 from PIL import Image
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QIntValidator
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
-                             QStatusBar, QAbstractItemView, QLineEdit, QSpinBox)
+                             QStatusBar, QAbstractItemView, QSpinBox)
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
@@ -208,7 +208,13 @@ class CustomWidget(QWidget):
         self._adicinalText = QLabel(text)
         self._type = str
 
-        if isinstance(data, int) or isinstance(data, float) or isinstance(data, str):
+        if isinstance(data, bool):
+            self._label = QCheckBox()
+            self._label.setChecked(data)
+            self._label.setEnabled(False)
+            self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
+
+        elif isinstance(data, int) or isinstance(data, float) or isinstance(data, str):
             if not isinstance(data, str):
                 self._type = int if isinstance(data, int) else float
             self._label.setText(str(data))
@@ -247,8 +253,8 @@ class TableView(QTableWidget):
     def __init__(self, objectManager):
         super().__init__()
         self.propertiesTableDialog = ColumnPropertiesTable(self, self)
-        self._pageNumber = 1
-        self._pageSize = 50
+        self._pageNumber = 1  # First page
+        self._pageSize = ZOOM_SIZE
         self._actualRow = 0
         self._actualColumn = 0
         self.oldColumn = None
@@ -256,6 +262,7 @@ class TableView(QTableWidget):
         self.objecManager = objectManager
         self.cellClicked.connect(self.setActualRowColumn)
         self.horizontalHeader().sectionClicked.connect(self.setActualColumn)
+        self._oldzoom = ZOOM_SIZE
 
     def _createTable(self, tableName):
         # Creating the table
@@ -282,6 +289,12 @@ class TableView(QTableWidget):
         self.hScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.setCurrentCell(0, 0)
 
+    def getOldZoom(self):
+        return self._oldzoom
+
+    def setOldZoom(self, value):
+        self._oldzoom = value
+
     def setTableName(self, tableName):
         self._tableName = tableName
 
@@ -298,7 +311,6 @@ class TableView(QTableWidget):
         return None
 
     def orderByColumn(self, column, order):
-
         self._orderAsc = order
         if self.oldColumn is not None:
             self.horizontalHeaderItem(self.oldColumn).setIcon(QIcon(None))
@@ -332,8 +344,8 @@ class TableView(QTableWidget):
         self.setColumnCount(len(columns))
         self.setRowCount(self._rowsCount)
         # Set prototype item to improve loading speed
-        prototype_item = QTableWidgetItem()
-        self.setItemPrototype(prototype_item)
+        # prototype_item = QTableWidgetItem()
+        # self.setItemPrototype(prototype_item)
         self._loadRows()
 
     def _calculateVisibleColumns(self):
@@ -413,8 +425,12 @@ class GalleryView(QTableWidget):
         self._tableName = table.getName()
         self._tableAlias = table.getAlias()
         self._columns = self.objecManager.getTable(self._tableName).getColumns()
+        self._actualRow = 0
+        self._actualColumn = 0
         self._columnWithImages = self.getColumnWithImages()
+        self.cellClicked.connect(self.setActualRowColumn)
         self.setGeometry(0, 0, 600, 600)
+        self._oldzoom = ZOOM_SIZE
 
     def setTableName(self, tableName):
         self._tableName = tableName
@@ -444,6 +460,12 @@ class GalleryView(QTableWidget):
         self.setVerticalScrollBar(self.vScrollBar)
         self.vScrollBar.valueChanged.connect(self._loadImages)
         self._triggeredResize = False
+
+    def getOldZoom(self):
+        return self._oldzoom
+
+    def setOldZoom(self, value):
+        self._oldzoom = value
 
     def _calculateVisibleColumns(self):
         viewportWidth = self.viewport().width()
@@ -484,11 +506,16 @@ class GalleryView(QTableWidget):
                         break
                     values = rows[countImages]
                     item = self._columns[self._columnWithImages].getRenderer().render(values.getValues()[self._columnWithImages])
-                    widget = CustomWidget(item, True, str(seekFirstImage + countImages + 1))
+                    widget = CustomWidget(item, False, str(seekFirstImage + countImages + 1))
                     self.setCellWidget(currentValue + row, col, widget)
+
                     self.resizeColumnToContents(col)
+                    size = self.columnWidth(col)
+                    self.setColumnWidth(col, size + 5)
                     countImages += 1
                 self.resizeRowToContents(currentValue + row)
+                size = self.rowHeight(currentValue + row)
+                self.setRowHeight(currentValue + row, size + 5)
                 if seekFirstImage + countImages == self._tableSize:
                     break
 
@@ -500,22 +527,34 @@ class GalleryView(QTableWidget):
         rows = self.objecManager.getRows(self._tableName, seekFirstImage, seekLastImage)
         self._addImages(rows, currentValue, visibleRows, seekFirstImage)
 
+    def _update(self):
+        # Initializating with a large number of columns. It is useful for
+        # the method that calculates the visible columns
+        self.setColumnCount(50)
+        self._columnsCount = self._calculateVisibleColumns() - 1
+        # Verifying that there is at least five column
+        if self._columnsCount < 5:
+            self._columnsCount = 5
+        self.setColumnCount(self._columnsCount)
+        self._rowsCount = int(self._rowsCount / self._columnsCount)
+        # Verifying that there is at least one row
+        if self._rowsCount < 5:
+            self._rowsCount = 5
+        self._loadImages()
+
     def resizeEvent(self, event):
         if self._triggeredResize:
-            # Initializating with a large number of columns. It is useful for
-            # the method that calculates the visible columns
-            self.setColumnCount(20)
-            self._columnsCount = self._calculateVisibleColumns() - 1
-            # Verifying that there is at least five column
-            if self._columnsCount < 5:
-                self._columnsCount = 5
-            self.setColumnCount(self._columnsCount)
-            self._rowsCount = int(self._rowsCount / self._columnsCount)
-            # Verifying that there is at least one row
-            if self._rowsCount < 5:
-                self._rowsCount = 5
-            self._loadImages()
+            self._update()
         self._triggeredResize = True
+
+    def setActualRowColumn(self, row, column):
+        self.setStyleSheet("""
+                            QTableWidget::item:selected {
+                                border: 1.5px dashed red;
+                            }
+                        """)
+        self._actualRow = row
+        self._actualColumn = column
 
 
 class QTMetadataViewer(QMainWindow):
@@ -526,7 +565,7 @@ class QTMetadataViewer(QMainWindow):
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
         self.tableAliases = self.objecManager.getTableAliases()
-        self._pageSize = 50
+        self._pageSize = PAGE_SIZE
         self._triggeredResize = False
         self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
         self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
@@ -534,6 +573,9 @@ class QTMetadataViewer(QMainWindow):
         self.setMinimumSize(800, 400)
         self._tableView = args.tableview
         self._galleryView = args.galleryview
+        self._darktheme = args.darktheme
+        if self._darktheme:
+            self.setDarkTheme()
 
         # Table view
         self.table = TableView(self.objecManager)
@@ -552,6 +594,28 @@ class QTMetadataViewer(QMainWindow):
             self._loadGalleryView()
         else:
             self._loadTableView()
+
+    def setDarkTheme(self):
+        # Dark theme
+        palette = QPalette()
+        palette.setColor(QPalette.Window, QColor(53, 53, 53))
+        palette.setColor(QPalette.WindowText, Qt.white)
+        palette.setColor(QPalette.Base, QColor(25, 25, 25))
+        palette.setColor(QPalette.AlternateBase, QColor(53, 53, 53))
+        palette.setColor(QPalette.ToolTipBase, Qt.white)
+        palette.setColor(QPalette.ToolTipText, Qt.white)
+        palette.setColor(QPalette.Text, Qt.white)
+        palette.setColor(QPalette.Button, QColor(53, 53, 53))
+        palette.setColor(QPalette.ButtonText, Qt.white)
+        palette.setColor(QPalette.BrightText, Qt.red)
+        palette.setColor(QPalette.Link, QColor(42, 130, 218))
+        palette.setColor(QPalette.Highlight, QColor(42, 130, 218))
+        palette.setColor(QPalette.HighlightedText, Qt.black)
+        self.setPalette(palette)
+
+    def setLightTheme(self):
+        # default theme
+        self.setPalette(self.style().standardPalette())
 
     def resizeEvent(self, event):
         if self._triggeredResize:
@@ -616,33 +680,44 @@ class QTMetadataViewer(QMainWindow):
     def _loadTableView(self):
         self._galleryView = False
         self._tableView = True
-        self.zoom.setValue(100)
+        self.table.setActualRowColumn(0, 0)
         row = self.table.getActualRow()
         column = self.table.getActualColumn()
         self.enableTableOptions(row, column)
+        self.table.clearContents()
         galleryEnable = True if self.gallery.getColumnWithImages() else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
         self.gotoTableAction.setEnabled(False)
+        newTableSize = self.size()
         widget = self.takeCentralWidget()
         if widget:
             self.gallery = widget
         self.table.setVisible(True)
+        self.table.resize(newTableSize.width(), newTableSize.height())
         self.setCentralWidget(self.table)
         self.bockTableName.setEnabled(True)
+        self.table._loadRows()
 
     def _loadGalleryView(self):
         self._galleryView = True
         self._tableView = False
+        self.zoom.setValue(self.gallery.getOldZoom())
         self.enableGalleryOption()
+        self.gallery.clearContents()
         self.gotoTableAction.setEnabled(True)
         self.gotoGalleryAction.setEnabled(False)
         widget = self.takeCentralWidget()
         if widget:
             self.table = widget
         tableName = self.bockTableName.currentText()
-        self.gallery.setTableName(tableName)
+        for table, alias in self.tableAliases.items():
+            if alias == tableName:
+                tableName = table
+                break
+        self.gallery._createGallery(tableName)
         self.gallery.setVisible(True)
         self.setCentralWidget(self.gallery)
+        self.gallery._loadImages()
 
     def _createMenuBar(self):
         # Creating the menu
@@ -706,8 +781,8 @@ class QTMetadataViewer(QMainWindow):
         columnsToolBar2.addWidget(self.zoomLabel)
         self.zoom = QSpinBox()
         self.zoom.setMaximum(2000)
-        self.zoom.setMinimum(50)
-        self.zoom.setValue(100)
+        self.zoom.setMinimum(ZOOM_SIZE)
+        self.zoom.setValue(ZOOM_SIZE)
         self.zoom.setToolTip(ZOOM)
         self.zoom.setFixedWidth(70)
         self.zoom.setAlignment(Qt.AlignRight)
@@ -734,8 +809,11 @@ class QTMetadataViewer(QMainWindow):
         if tableName != self.table.getTableName():
             self.table.setTableName(tableName)
             self.gallery.setTableName(tableName)
-            self.table._createTable(tableName)
-            self.gallery._createGallery(tableName)
+            if self._tableView:
+                self.table._createTable(tableName)
+            else:
+                self.gallery._createGallery(tableName)
+
             galleryEnable = True if self.gallery.getColumnWithImages() else False
             if galleryEnable:
                 self.gotoGalleryAction.setEnabled(True)
@@ -749,17 +827,22 @@ class QTMetadataViewer(QMainWindow):
         self.enableTableOptions(row, column)
 
     def enableGalleryOption(self):
-        self.zoom.setValue(100)
+        self.zoom.setValue(self.gallery.getOldZoom())
         self.zoom.setEnabled(True)
         self.zoomLabel.setEnabled(True)
         self.reduceDecimals.setEnabled(False)
         self.increaseDecimals.setEnabled(False)
         self.sortUp.setEnabled(False)
         self.sortDown.setEnabled(False)
+        self.table.propertiesTableAction.setEnabled(False)
 
     def enableTableOptions(self, row, column):
-        self.sortUp.setEnabled(True)
-        self.sortDown.setEnabled(True)
+        self.zoom.setValue(self.table.getOldZoom())
+        isSorteable = self.table.getColumns()[self.table.getActualColumn()].isSorteable()
+        self.sortUp.setEnabled(isSorteable)
+        self.sortDown.setEnabled(isSorteable)
+        self.table.propertiesTableAction.setEnabled(True)
+
         item = self.table.cellWidget(row, column)
         if item.widgetType() == float:
             self.reduceDecimals.setEnabled(True)
@@ -779,23 +862,27 @@ class QTMetadataViewer(QMainWindow):
         self.enableGalleryOption()
 
     def _renderImage(self):
-        row = self.table.getActualRow()
+        row = 0
+        zoom = self.zoom.value()
         if self._tableView:
             column = self.table.getColumnWithImages()
-            self.table.getColumns()[column].getRenderer().setSize(self.zoom.value())
-            self.table.setRowHeight(row, self.zoom.value())
+            self.table.getColumns()[column].getRenderer().setSize(zoom)
+            self.table.setRowHeight(row, zoom)
+            self.table.setOldZoom(zoom)
             self.table._loadRows()
+
         if self._galleryView:
             column = self.gallery.getColumnWithImages()
-            self.gallery.getColumns()[column].getRenderer().setSize(self.zoom.value())
-            self.gallery.setRowHeight(row, self.zoom.value())
+            self.gallery.getColumns()[column].getRenderer().setSize(zoom)
+            self.gallery.setRowHeight(row, zoom)
+            self.gallery.setOldZoom(zoom)
             self.gallery._loadImages()
 
     def _redIncDecimals(self, flag):
         column = self.table.getActualColumn()
         decimals = self.table.getColumns()[column].getRenderer().getDecimalsNumber()
-        if decimals > 1:
-            redInc = -1 if flag else 1
+        redInc = -1 if flag else 1
+        if decimals + redInc > 0:
             self.table.getColumns()[column].getRenderer().setDecimalNumber(decimals + redInc)
             self.table._loadRows()
 

@@ -25,49 +25,7 @@
 # *
 # **************************************************************************
 
-#  -------ICONS----------
 
-DOWN_ARROW = 'gui/resources/down-arrow.png'
-UP_ARROW = 'gui/resources/up-arrow.png'
-FOLDER = 'gui/resources/folder.png'
-EXIT = 'gui/resources/exit.png'
-TABLE = 'gui/resources/table.png'
-TABLE_VIEW = 'gui/resources/table-view.png'
-GALLERY_VIEW = 'gui/resources/gallery.png'
-REDUCE_DECIMALS = 'gui/resources/reducedecimals.png'
-INCREASE_DECIMALS = 'gui/resources/increasedecimals.png'
-TABLE_BLOCKS = 'gui/resources/sections.png'
-PREFERENCES = 'gui/resources/preferences.png'
-ZOOM_PLUS = 'gui/resources/zoom.png'
-
-# -------LABELS PROPERTIES_TABLE ------------
-LABEL = 'Label'
-VISIBLE = 'Visible'
-RENDER = 'Render'
-EDIT = 'Edit'
-
-# ------------ACTIONS TEXTS-------------------------
-
-COLUMNS = 'Columns...'
-GO_TO_TABLE_VIEW = "Go to TABLE view"
-GO_TO_GALLERY_VIEW = 'Go to GALLERY view'
-REDUCE_DECIMALS_TEXT = 'Reduce decimals'
-INCREASE_DECIMALS_TEXT = 'Increase decimals'
-SORT_ASC = 'Sort ascending'
-SORT_DESC = 'Sort descending'
-
-
-# --------------TOOLBAR LABELS & VARIABLES----------------
-
-BLOCKS = 'Tables'
-ZOOM = 'Size in pixels'
-
-# ---------------------CONSTANTS-----------------
-ZOOM_SIZE = 150
-PAGE_SIZE = 50
-
-
-
-
-
-
+EXTENDED_COLUMN_NAME = '_index@_filename'
+ENABLED_COLUMN = 'enabled'
+IMAGE_DEFAULT_SIZE = 150

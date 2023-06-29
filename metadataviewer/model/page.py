@@ -25,9 +25,13 @@
 # *
 # **************************************************************************
 import logging
+
+from .constants import EXTENDED_COLUMN_NAME, ENABLED_COLUMN
+
 logger = logging.getLogger()
 
-from .renderers import StrRenderer
+from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, BoolRenderer,
+                        MatrixRender, StrRenderer)
 
 
 class Column:
@@ -35,6 +39,7 @@ class Column:
         self._name = name
         self._alias = None
         self._renderer = renderer or StrRenderer
+        self._isSorteable = True
 
     def getName(self):
         return self._name
@@ -50,6 +55,12 @@ class Column:
 
     def setRenderer(self, renderer):
         self._renderer = renderer
+
+    def isSorteable(self):
+        return self._isSorteable
+
+    def setIsSorteable(self, isSorteable):
+        self._isSorteable = isSorteable
 
     def __str__(self):
         return 'Column: %s (renderer: %s)' % (self._name, self._renderer)
@@ -129,7 +140,13 @@ class Table:
                        the data renderer
         """
         for i in range(len(columns)):
-            self.addColumn(Column(columns[i], _guessRender(values[i])))
+            column = Column(columns[i], _guessRender(values[i]))
+            if column.getName() == ENABLED_COLUMN:
+                column.setRenderer(BoolRenderer())
+                column.setIsSorteable(False)
+            if column.getName() == EXTENDED_COLUMN_NAME:
+                column.setIsSorteable(False)
+            self.addColumn(column)
 
     def clear(self):
         """ Remove all columns """
@@ -190,8 +207,6 @@ class Page:
 # --------- Helper functions  ------------------------
 
 def _guessRender(strValue):
-    from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, MatrixRender,
-        StrRenderer)
 
     if strValue is None:
         return StrRenderer()
