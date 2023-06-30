@@ -51,6 +51,7 @@ class SqliteFile(IDAO):
         self._extendedColumn = None
 
     def __loadDB(self, sqliteFile):
+        """Load a sqlite file"""
         try:
             return sqlite3.connect(f"file:{sqliteFile}?mode=ro", uri=True)
         except Exception as e:
@@ -59,9 +60,13 @@ class SqliteFile(IDAO):
             return None
 
     def hasExtendedColumn(self):
+        """Return if the table need to extend a column. That column is used to
+        renderer an image that is composed by other two columns"""
         return self._extendedColumn is not None
 
     def composeDataTables(self, tablesNames):
+        """This method is used to generate a dictionary with the principal
+           tables mapping the dependencies with other tables"""
         tablesNames = sorted(tablesNames)
         for tableName in tablesNames:
             divTable = tableName.split('_')
@@ -72,6 +77,7 @@ class SqliteFile(IDAO):
                     self._names.append(objectTable)
 
     def composeTableAlias(self, tableName):
+        """Create an alias for the given table"""
         firstRow = self.getTableRow(tableName, 0)
         className = firstRow['class_name']
         if tableName.__contains__('_'):
@@ -105,12 +111,14 @@ class SqliteFile(IDAO):
         return self._names
 
     def findColbyName(self, colNames, colName):
+        """Return a column index given a column name"""
         for i, col in enumerate(colNames):
             if colName == col:
                 return i
         return None
 
     def updateExtendColumn(self, table):
+        """Find the columns that need to extend and keep the indexes"""
         tableName = table.getName()
         colNames = self._labels[tableName]
         indexCol = self.findColbyName(colNames, '_index')
@@ -133,6 +141,7 @@ class SqliteFile(IDAO):
                 self._extendedColumn = indexCol, representativeCol
 
     def fillTable(self, table):
+        """Create the table structure (columns) and set the table alias"""
         tableName = table.getName()
         colNames = self._labels[tableName]
         self.updateExtendColumn(table)
@@ -140,6 +149,7 @@ class SqliteFile(IDAO):
         values = list(self.getTableRow(tableName, 0,
                                        classes=self._tables[tableName]).values())
         if self._extendedColumn:
+            logger.debug("Creating an extended column: %s" % EXTENDED_COLUMN_NAME)
             colNames.insert(self._extendedColumn[1] + 1, EXTENDED_COLUMN_NAME)
             values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + values[self._extendedColumn[1]])
         table.createColumns(colNames, values)
@@ -147,7 +157,7 @@ class SqliteFile(IDAO):
 
     def fillPage(self, page, actualColumn=0, orderAsc=True):
         """
-        Read the given table from the sqlite and fill the page
+        Read the given table from the sqlite and fill the page(add rows)
         """
         tableName = page.getTable().getName()
         # moving to the first row of the page
@@ -216,7 +226,7 @@ class SqliteFile(IDAO):
             res = self._con.execute(query)
             while row := res.fetchone():
                 yield row
-        else:
+        else:  # Mapping the column names
             self._columnsMap[tableName] = {row['column_name']: row['label_property']
                           for row in self.iterTable(kwargs['classes'])}
 
@@ -233,9 +243,11 @@ class SqliteFile(IDAO):
             self._con.row_factory = self._dictFactory
 
     def getTableAliases(self):
+        """Return the tables aliases"""
         return self._aliases
 
     def _getColumnMap(self, tableName, column):
+        """Get the column name that has been mapped"""
         for key, value in self._columnsMap[tableName].items():
             if value == column:
                 return key
@@ -258,6 +270,7 @@ class SqliteFile(IDAO):
         return {key: value for key, value in zip(fields, row)}
 
     def getCompatibleFileTypes(self):
+        """Return a list of compatible extension of files"""
         logger.debug("Selected SqliteFile DAO")
         return ['sqlite']
 

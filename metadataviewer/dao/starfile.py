@@ -52,6 +52,7 @@ class StarFile(IDAO):
             return None
 
     def fillTable(self, table):
+        """Create the table structure"""
         self._loadStarFileInfo(table)
 
     def fillPage(self, page, actualColumn, orderAsc):
@@ -76,6 +77,7 @@ class StarFile(IDAO):
                 page.addRow(row)
 
     def getTableRowCount(self, tableName):
+        """Get the number of rows of a given table"""
         return self._tableCount[tableName]
 
     def getTableNames(self):
@@ -103,10 +105,11 @@ class StarFile(IDAO):
         return list(self._names)
 
     def getTableAliases(self):
+        """Get the tables aliases"""
         return self._aliases
 
     def _getData(self):
-        """ Method to get all information of the table"""
+        """ Method to get all information of the table (labels, data,...)"""
         self._findLabelLine()
         data = []
         line, labels = self._getLabels()
@@ -125,6 +128,7 @@ class StarFile(IDAO):
         return count, labels, labelsTypes, data
 
     def _getLabels(self):
+        """Get the table labels"""
         logger.debug("Getting the table labels...")
         line = self._line
         labels = []
@@ -139,6 +143,7 @@ class StarFile(IDAO):
         return line, labels
 
     def _loadStarFileInfo(self, table):
+        """Create the table structure"""
         logger.debug("Creating the table columns...")
         colNames = self._labels[table.getName()]
         values = self._tableData[table.getName()][0]
@@ -146,6 +151,7 @@ class StarFile(IDAO):
         table.setAlias(table.getName())
 
     def _findLabelLine(self):
+        """Find the first labels line in the star file"""
         line = ''
         foundLoop = False
 
@@ -162,6 +168,7 @@ class StarFile(IDAO):
         self._foundLoop = foundLoop
 
     def _iterRowLines(self, tableName, firstRow, endRow):
+        """Iter over the table in a range of rows """
         if self._tableCount[tableName] == 1:
             yield 1, self._tableData[tableName][0]
             return
@@ -169,7 +176,7 @@ class StarFile(IDAO):
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
             values = self._tableData[tableName][i]
-            yield i+1, values
+            yield i + 1, values
 
     def close(self):
         if getattr(self, '_file', None):
@@ -177,6 +184,7 @@ class StarFile(IDAO):
             self._file = None
 
     def getCompatibleFileTypes(self):
+        """Return a list of compatible extension of files"""
         logger.debug("Selected StarFile DAO")
         return ['star', 'xmd']
 

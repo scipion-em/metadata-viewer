@@ -30,6 +30,7 @@ from metadataviewer.model import Page, Table
 
 
 class IDAO:
+    """DAOs interface"""
 
     @abstractmethod
     def __init__(self, filename: str):

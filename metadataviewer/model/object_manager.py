@@ -35,6 +35,8 @@ from metadataviewer.model import Table, Page
 
 
 class ObjectManager:
+    """Class that represent the object manager. This class maintains
+    communication with the GUIs and the DAOs. """
     def __init__(self, fileName: str):
         self._fileName = fileName
         self._tables = {}
@@ -46,16 +48,20 @@ class ObjectManager:
         self._dao = None
 
     def __registerterOwnDAOs(self):
+        """Register the own DAOs"""
         self.registerDAO(StarFile)
         self.registerDAO(SqliteFile)
 
     def getRegisteredDAO(self):
+        """return the registered DAOs"""
         return self._registeredDAO
 
     def registerDAO(self, dao):
+        """Register a given DAO"""
         self._registeredDAO.append(dao)
 
     def selectDAO(self):
+        """Select a DAO taking into account a file extension"""
         for dao in self._registeredDAO:
             instance = dao(self._fileName)
             ext = os.path.basename(self._fileName).split('.')[-1]
@@ -69,18 +75,23 @@ class ObjectManager:
         return self._dao
 
     def getDAO(self):
+        """Return the selected DAO"""
         return self._dao
 
     def getFileName(self):
+        """Return the filename"""
         return self._fileName
 
     def getPageSize(self):
+        """Return the page size"""
         return self._pageSize
 
     def getPageNumber(self):
+        """Return the page number"""
         return self._pageNumber
 
     def createTable(self, tableName: str):
+        """Create a table"""
         self._tableName = tableName
         table = Table(tableName)
         self._dao.fillTable(table)
@@ -104,7 +115,7 @@ class ObjectManager:
         return self.page
 
     def getNumberPageFromRow(self, row):
-        """Get the number of the page on wich  the row is located"""
+        """Return the number of the page on which the row is located"""
         pageSize = self.getPageSize()
         pageNumber = int((row + 1) / pageSize)
         if (row + 1) % pageSize > 0:
@@ -140,19 +151,19 @@ class ObjectManager:
         return rows
 
     def getTableNames(self):
+        """Return the tables names"""
         return self._dao.getTableNames()
 
     def getTableAliases(self):
+        """Return the tables aliases"""
         return self._dao.getTableAliases()
 
     def getTableRowCount(self, tableName: str):
         return self._dao.getTableRowCount(tableName)
 
-    def getNextPage(self, pageNumber: int):
-        self._pageNumber = pageNumber
-        return self.getPage(self._tableName, self._pageNumber, self._pageSize)
-
     def getTable(self, tableName: str):
+        """Returns a table if it is stored, otherwise a new table is
+           created. """
         if tableName not in self._tables:
             table = self.createTable(tableName)
             self._tables[tableName] = table
@@ -162,6 +173,7 @@ class ObjectManager:
         return table
 
     def sort(self, tableName, column, reverse=True):
+        """Store the table sort preferences"""
         table = self.getTable(tableName)
         table.setSortingColumnIndex(column)
         table.setSortingAsc(reverse)

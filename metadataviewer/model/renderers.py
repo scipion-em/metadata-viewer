@@ -157,7 +157,7 @@ class MRCImageReader(ImageReader):
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
-        return ['mrc', 'mrcs', 'em']
+        return ['mrc', 'mrcs', 'em', 'rec', 'ali']
 
 
 class STKImageReader(ImageReader):
