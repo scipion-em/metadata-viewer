@@ -370,7 +370,7 @@ class TableView(QTableWidget):
 
     def _calculateVisibleColumns(self):
         """Method tha calculate how many columns are visible"""
-        viewportWidth = self.viewport().width()
+        viewportWidth = self.parent().width() if self.parent() else self.viewport().width()
         visibleCols = 0
 
         for col in range(self.columnCount()):
@@ -382,7 +382,7 @@ class TableView(QTableWidget):
 
     def _calculateVisibleRows(self):
         """Method that calculate how many rows are visible"""
-        viewportHeight = self.viewport().height()
+        viewportHeight = self.parent().height() if self.parent() else self.viewport().height()
         rowHeight = self.rowHeight(0) if self.rowHeight(0) else DEFAULT_ROW_HEIGHT  # row height (minumum size in case of the table is empty)
         visibleRows = viewportHeight // rowHeight + 1
         return visibleRows
@@ -498,7 +498,7 @@ class GalleryView(QTableWidget):
 
     def _calculateVisibleColumns(self):
         """Method that calculate how many columns are visible"""
-        viewportWidth = self.viewport().width()
+        viewportWidth = self.parent().width() if self.parent() else self.viewport().width()
         visibleCols = 0
         columnaX = 0
 
@@ -518,7 +518,7 @@ class GalleryView(QTableWidget):
 
     def _calculateVisibleRows(self):
         """Method that calculate how many rows are visible"""
-        viewportHeight = self.viewport().height()
+        viewportHeight = self.parent().height() if self.parent().height()  else self.viewport().height()
         visibleRows = viewportHeight // self._rowHeight + 1
         return visibleRows
 
@@ -567,7 +567,6 @@ class GalleryView(QTableWidget):
         self._rowsCount = int(self._rowsCount / self._columnsCount)
         self._loadImages()
 
-
     def setActualRowColumn(self, row, column):
         """Create a border to the selected image"""
         self.setStyleSheet("""
@@ -587,10 +586,11 @@ class QTMetadataViewer(QMainWindow):
         self.objecManager = ObjectManager(args.fileName)
         self.objecManager.selectDAO()
         self.tableNames = self.objecManager.getTableNames()
+        self.tableName = self.tableNames[0]
         self.tableAliases = self.objecManager.getTableAliases()
         self._pageSize = PAGE_SIZE
         self._triggeredResize = False
-        self._rowsCount = self.objecManager.getTableRowCount(self.tableNames[0])
+        self._rowsCount = self.objecManager.getTableRowCount(self.tableName)
         self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 800, 400)
         self.setMinimumSize(800, 400)
@@ -602,7 +602,7 @@ class QTMetadataViewer(QMainWindow):
 
         # Table view
         self.table = TableView(self.objecManager)
-        self.table._createTable(self.tableNames[0])
+        self.table._createTable(self.tableName)
         self.table.cellClicked.connect(self._tableCellClicked)
         self._createActions()
         self._createMenuBar()
@@ -732,7 +732,7 @@ class QTMetadataViewer(QMainWindow):
         self.gotoGalleryAction.setEnabled(False)
         self.setCentralWidget(self.gallery)
         self.enableGalleryOption()
-        self.gallery._loadImages()
+        self.gallery._update()
 
     def _createMenuBar(self):
         """ Create the menu """
@@ -826,6 +826,7 @@ class QTMetadataViewer(QMainWindow):
                 tableName = table
                 break
         if tableName != self.table.getTableName():
+            self.tableName = tableName
             self.zoom.setValue(ZOOM_SIZE)
             self.table._createTable(tableName)
             self.gallery._createGallery(tableName)
@@ -880,6 +881,8 @@ class QTMetadataViewer(QMainWindow):
         self.table._triggeredResize = False
         self.gotoTableAction.setEnabled(False)
         self.gotoGalleryAction.setEnabled(True)
+        galleryEnable = True if self.table.getColumnWithImages() else False
+        self.gotoGalleryAction.setEnabled(galleryEnable)
 
         item = self.table.cellWidget(row, column)
         if item.widgetType() == float:
