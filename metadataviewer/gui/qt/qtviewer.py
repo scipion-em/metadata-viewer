@@ -24,12 +24,15 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
+import logging
+logger = logging.getLogger()
+
 import os.path
 import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QSize
+from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
@@ -240,7 +243,7 @@ class CustomWidget(QWidget):
                     self._adicinalText.setAlignment(Qt.AlignBottom)
                     self._layout.addWidget(self._adicinalText)
             except Exception as e:
-                print("Error loading the image:", e)
+                logger.error("Error loading the image:", e)
 
         self.setLayout(self._layout)
 
@@ -283,7 +286,7 @@ class TableView(QTableWidget):
         self._createHeader()
         self.columns = self.objecManager.getTable(self._tableName).getColumns()
         self._columnWithImages = self.getColumnWithImages()
-        self._rowHeight = 30  # Default row height
+        self._rowHeight = DEFAULT_ROW_HEIGHT # Default row height
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
@@ -380,7 +383,7 @@ class TableView(QTableWidget):
     def _calculateVisibleRows(self):
         """Method that calculate how many rows are visible"""
         viewportHeight = self.viewport().height()
-        rowHeight = self.rowHeight(0) if self.rowHeight(0) else 30  # row height (minumum size in case of the table is empty)
+        rowHeight = self.rowHeight(0) if self.rowHeight(0) else DEFAULT_ROW_HEIGHT  # row height (minumum size in case of the table is empty)
         visibleRows = viewportHeight // rowHeight + 1
         return visibleRows
 
@@ -393,21 +396,20 @@ class TableView(QTableWidget):
 
         for i in range(len(rows)):
             rowValues = rows[i]
-            if rowValues.getValues():
-                values = rowValues.getValues()
-                for col in range(currenctColumnIndex, endColumn):
-                    if self._columns[col].getRenderer().renderType() != Image:
+            values = rowValues.getValues()
+            for col in range(currenctColumnIndex, endColumn):
+                if self._columns[col].getRenderer().renderType() != Image:
+                    item = self._columns[col].getRenderer().render(values[col])
+                else:
+                    if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
                         item = self._columns[col].getRenderer().render(values[col])
                     else:
-                        if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
-                            item = self._columns[col].getRenderer().render(values[col])
-                        else:
-                            item = values[col]
+                        item = values[col]
 
-                    widget = CustomWidget(item)
-                    self.setCellWidget(i + currentRowIndex, col, widget)
-                    self.resizeColumnToContents(col)
-                self.setRowHeight(i + currentRowIndex, self._rowHeight)
+                widget = CustomWidget(item)
+                self.setCellWidget(i + currentRowIndex, col, widget)
+                self.resizeColumnToContents(col)
+            self.setRowHeight(i + currentRowIndex, self._rowHeight)
 
     def _loadRows(self):
         """Load the table rows"""
@@ -466,10 +468,10 @@ class GalleryView(QTableWidget):
     def _createGallery(self, tableName):
         """Creating the gallery for a given table"""
         self._tableName = tableName
-        self.setColumnCount(25)
         self._tableSize = self.objecManager.getTableRowCount(self._tableName)
         self._columns = self.objecManager.getTable(self._tableName).getColumns()
         self._columnsCount = self._calculateVisibleColumns()
+        self.setColumnCount(self._columnsCount)
         self._columnWithImages = self.getColumnWithImages()
         self._rowsCount = int(self._tableSize / self._columnsCount) + 1
         self._tableName = tableName
@@ -498,13 +500,11 @@ class GalleryView(QTableWidget):
         """Method that calculate how many columns are visible"""
         viewportWidth = self.viewport().width()
         visibleCols = 0
+        columnaX = 0
 
-        for col in range(self.columnCount()):
-            columnaX = self.columnViewportPosition(col)
-            widthColumna = self.columnWidth(col)
-
-            if columnaX < viewportWidth and columnaX + widthColumna > 0:
-                visibleCols += 1
+        while columnaX < viewportWidth:
+            columnaX += self.getOldZoom()
+            visibleCols += 1
         return visibleCols
 
     def getColumnWithImages(self):
@@ -902,23 +902,19 @@ class QTMetadataViewer(QMainWindow):
 
     def _renderImage(self):
         """Method tha control the images renderers"""
-        row = 0
         zoom = self.zoom.value()
         if self._tableView:
-            column = self.table.getColumnWithImages()
+            column = self.table._columnWithImages
             self.table.getColumns()[column].getRenderer().setSize(zoom)
-            self.table.setRowHeight(row, zoom)
             self.table.setOldZoom(zoom)
             self.table._setRowHeight(zoom)
             self.table._loadRows()
 
         if self._galleryView:
-            column = self.gallery.getColumnWithImages()
+            column = self.gallery._columnWithImages
             self.gallery.getColumns()[column].getRenderer().setSize(zoom)
-            self.gallery.setRowHeight(row, zoom)
             self.gallery.setOldZoom(zoom)
-            self._triggeredResize = False
-            self.gallery._loadImages()
+            self.gallery._update()
 
     def _redIncDecimals(self, flag):
         """Method that control the increments or reduce decimals when a float

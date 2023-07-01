@@ -65,6 +65,7 @@ ZOOM = 'Size in pixels'
 # ---------------------CONSTANTS-----------------
 ZOOM_SIZE = 150
 PAGE_SIZE = 50
+DEFAULT_ROW_HEIGHT = 30
 
 
 
