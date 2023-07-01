@@ -50,7 +50,7 @@ class IRenderer:
         try:
             return self._render(value)
         except Exception as e:
-            logger.error("It is not possible to assign a renderer to this "
+            logger.info("It is not possible to assign a renderer to this "
                          "value. It will be rendered as a string: %s" % e)
             return str(value)
 
@@ -154,6 +154,7 @@ class MRCImageReader(ImageReader):
             img = Image.fromarray(im255[index-1])
 
             return img
+        return None
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
@@ -174,7 +175,6 @@ class STKImageReader(ImageReader):
         if len(stk) > 1:
             image = cls.read(stk[-1], int(stk[0]))
             return image
-        raise Exception('Can not renderer this image.')
 
     @classmethod
     def read(cls, filename, id):
