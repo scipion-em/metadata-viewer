@@ -79,7 +79,7 @@ class IntRenderer(IRenderer):
 
 class FloatRenderer(IRenderer):
 
-    def __init__(self, decimalNumber: int = 4):
+    def __init__(self, decimalNumber: int = 2):
         self._decimalNumber = decimalNumber
 
     def _render(self, value):
