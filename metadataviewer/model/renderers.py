@@ -128,6 +128,7 @@ class PILImageReader(ImageReader):
     def open(cls, path):
         path = os.path.abspath(path)
         image = Image.open(path)
+        image.close()
         return image
 
     @classmethod
@@ -142,16 +143,17 @@ class MRCImageReader(ImageReader):
         if len(filePath) > 1:
             index = int(filePath[0])
             fileName = filePath[-1]
-            mrc_img = mrcfile.open(fileName, permissive=True)
-            if mrc_img.is_volume():
-                imfloat = mrc_img.data[0, :, :]
+            mrcImg = mrcfile.open(fileName, permissive=True)
+            if mrcImg.is_volume():
+                imfloat = mrcImg.data[0, :, :]
             else:
-                imfloat = mrc_img.data
+                imfloat = mrcImg.data
 
             iMax = imfloat.max()
             iMin = imfloat.min()
             im255 = ((imfloat - iMin) / (iMax - iMin) * 255).astype(np.uint8)
             img = Image.fromarray(im255[index-1])
+            mrcImg.close()
 
             return img
         return None
