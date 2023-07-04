@@ -750,8 +750,6 @@ class QTMetadataViewer(QMainWindow):
 
         self._galleryView = True
         self._tableView = False
-        self.gallery.setActualRowColumn(0, 0)
-        self.zoom.setValue(self.gallery.getOldZoom())
         self.gotoTableAction.setEnabled(True)
         self.gotoGalleryAction.setEnabled(False)
         self.setCentralWidget(self.gallery)
@@ -877,9 +875,11 @@ class QTMetadataViewer(QMainWindow):
             self.table._createTable(tableName)
             self.gallery._createGallery(tableName)
 
-            if self._galleryView:
+            if self._galleryView and self.table.getColumnWithImages():
+                self.gallery.setActualRowColumn(0, 0)
                 self._loadGalleryView()
             else:
+                self.table.setActualRowColumn(0, 0)
                 self._loadTableView()
                 galleryEnable = True if self.gallery.getColumnWithImages() else False
                 if galleryEnable:
@@ -982,7 +982,6 @@ class QTMetadataViewer(QMainWindow):
             self.goToItem.setValue(itemIndex)
         itemIndex -= 1
 
-        self.table.setActualRowColumn(itemIndex, 0)
         self.table.selectRow(itemIndex)
 
         columnsCount = self.gallery.getColumnsCount()
