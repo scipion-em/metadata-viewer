@@ -353,7 +353,6 @@ class TableView(QTableWidget):
     def _createHeader(self):
         """Create the table header"""
         table = self.objecManager.getTable(self._tableName)
-        self.setColumnCount(0)
         self._columns = table.getColumns()
         self.setColumnCount(len(self._columns))
         for i, column in enumerate(self._columns):
@@ -491,6 +490,7 @@ class GalleryView(QTableWidget):
         self._columnsCount = self._calculateVisibleColumns()
         self._rowsCount = self._calculateVisibleRows()
         self._columnWithImages = self.getColumnWithImages()
+        self._renderer = self._columns[self._columnWithImages].getRenderer()
         self._rowsCount = int(self._tableSize / self._columnsCount) + 1
         self._tableName = tableName
         self.mainWidget = QWidget()
@@ -505,6 +505,9 @@ class GalleryView(QTableWidget):
         self.vScrollBar.valueChanged.connect(self._loadImages)
         if self._columnWithImages:
             self._rowHeight = self.getOldZoom()
+
+    def getRenderer(self):
+        return self._renderer
 
     def getOldZoom(self):
         """Return the old gallery zoom value"""
@@ -521,7 +524,7 @@ class GalleryView(QTableWidget):
         columnaX = 0
         viewportWidth = viewportWidth - self.getOldZoom()
         while columnaX < viewportWidth:
-            columnaX += self.getOldZoom()
+            columnaX += self.getOldZoom() + 5
             visibleCols += 1
         return visibleCols
 
@@ -542,16 +545,8 @@ class GalleryView(QTableWidget):
 
     def _addImages(self, rows, currentValue, visibleRows, seekFirstImage):
         """Add images to the gallary"""
-        if self._columnsCount > self._tableSize:
-            self._columnsCount = self._tableSize
-        self.setColumnCount(self._columnsCount)
-        auxRow = 0 if self._tableSize % self._columnsCount == 0 else 1
-        self._rowsCount = int(self._tableSize / self._columnsCount) + auxRow
-
-        self.setRowCount(self._rowsCount)
-
-        renderer = self._columns[self._columnWithImages].getRenderer()
-        rowsValues = [row.getValues() for row in rows]
+        renderer = self.getRenderer()
+        rowsValues = [row.getValues()[self._columnWithImages] for row in rows]
         countImages = 0
 
         if self._columnWithImages:
@@ -559,10 +554,10 @@ class GalleryView(QTableWidget):
                 for col in range(self._columnsCount):
                     if seekFirstImage + countImages == self._tableSize:
                         break
-                    value = rowsValues[countImages][self._columnWithImages]
+                    value = rowsValues[countImages]
                     item = renderer.render(value)
-                    widget = CustomWidget(item)
-                    self.setCellWidget(currentValue + row, col, widget)
+                    self.setCellWidget(currentValue + row, col,
+                                       CustomWidget(item))
                     self.setColumnWidth(col, self.getOldZoom() + 5)
                     countImages += 1
                 self.setRowHeight(currentValue + row, self.getOldZoom() + 5)
@@ -586,6 +581,14 @@ class GalleryView(QTableWidget):
         self.setColumnCount(0)
         self._columnsCount = self._calculateVisibleColumns() - 1
         self._rowsCount = int(self._rowsCount / self._columnsCount)
+        if self._columnsCount > self._tableSize:
+            self._columnsCount = self._tableSize
+        auxRow = 0 if self._tableSize % self._columnsCount == 0 else 1
+        self._rowsCount = int(self._tableSize / self._columnsCount) + auxRow
+
+        self.setColumnCount(self._columnsCount)
+        self.setRowCount(self._rowsCount)
+
         self._loadImages()
 
     def setActualRowColumn(self, row, column):
@@ -669,7 +672,7 @@ class QTMetadataViewer(QMainWindow):
         """Create the status bar"""
         self.statusbar = QStatusBar()
         self.setStatusBar(self.statusbar)
-        self.statusbar.setFixedHeight(30)
+        self.statusbar.setFixedHeight(DEFAULT_ROW_HEIGHT)
 
     def _createActions(self):
         """Create a set of GUI actions"""
@@ -921,7 +924,7 @@ class QTMetadataViewer(QMainWindow):
         self.sortUp.setEnabled(False)
         self.sortDown.setEnabled(False)
         self.table.propertiesTableAction.setEnabled(False)
-        self.gallery._triggeredResize = False
+        self._triggeredResize = False
 
     def enableTableOptions(self, row, column):
         """Preference of table mode"""
@@ -935,6 +938,7 @@ class QTMetadataViewer(QMainWindow):
         self.gotoGalleryAction.setEnabled(True)
         galleryEnable = True if self.table.getColumnWithImages() else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
+        self._triggeredResize = False
 
         item = self.table.cellWidget(row, column)
         if item:
@@ -955,6 +959,7 @@ class QTMetadataViewer(QMainWindow):
     def _renderImage(self):
         """Method tha control the images renderers"""
         zoom = self.zoom.value()
+        self._triggeredResize = False
         if self._tableView:
             column = self.table._columnWithImages
             self.table.getColumns()[column].getRenderer().setSize(zoom)
@@ -963,8 +968,7 @@ class QTMetadataViewer(QMainWindow):
             self.table._loadRows()
 
         if self._galleryView:
-            column = self.gallery._columnWithImages
-            self.gallery.getColumns()[column].getRenderer().setSize(zoom)
+            self.gallery.getRenderer().setSize(zoom)
             self.gallery.setOldZoom(zoom)
             self.gallery._update()
         self._gotoItem(self.goToItem.value())

@@ -128,7 +128,6 @@ class PILImageReader(ImageReader):
     def open(cls, path):
         path = os.path.abspath(path)
         image = Image.open(path)
-        image.close()
         return image
 
     @classmethod
@@ -153,8 +152,6 @@ class MRCImageReader(ImageReader):
             iMin = imfloat.min()
             im255 = ((imfloat - iMin) / (iMax - iMin) * 255).astype(np.uint8)
             img = Image.fromarray(im255[index-1])
-            mrcImg.close()
-
             return img
         return None
 
