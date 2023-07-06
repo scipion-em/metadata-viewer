@@ -170,7 +170,6 @@ class ColumnPropertiesTable(QDialog):
         for column, checkBox in enumerate(self.visibleCheckBoxList):
             display = not checkBox.isChecked()
             self._table.setColumnHidden(column, display)
-            self._table._loadRows()
 
     def uncheckVisibleColumns(self, start):
         """Hide the table columns beginning from a given column index"""
@@ -315,7 +314,6 @@ class TableView(QTableWidget):
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
-        self.propertiesTableDialog.uncheckVisibleColumns(8)
         self.propertiesTableDialog.hideColumns()
         self.setVerticalScrollBar(self.vScrollBar)
         self.setHorizontalScrollBar(self.hScrollBar)
