@@ -292,6 +292,7 @@ class TableView(QTableWidget):
         self.objecManager = objectManager
         self.cellClicked.connect(self.setActualRowColumn)
         self.horizontalHeader().sectionClicked.connect(self.setActualColumn)
+        self.setSelectionBehavior(QTableWidget.SelectRows)
         self._oldzoom = ZOOM_SIZE
 
     def _createTable(self, tableName):

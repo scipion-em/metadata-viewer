@@ -32,6 +32,7 @@ import sqlite3
 from .model import IDAO
 
 EXTENDED_COLUMN_NAME = '_index@_filename'
+ALLOWED_COLUMNS_TYPES = ['String', 'Float', 'Integer', 'Boolean', 'Matrix']
 
 
 class SqliteFile(IDAO):
@@ -227,12 +228,14 @@ class SqliteFile(IDAO):
             res = self._con.execute(query)
             while row := res.fetchone():
                 yield row
-        else:  # Mapping the column names
+        else:  # Mapping the column names and  including only the allowed columns
             self._columnsMap[tableName] = {row['column_name']: row['label_property']
-                          for row in self.iterTable(kwargs['classes'])}
+                          for row in self.iterTable(kwargs['classes']) if row['class_name'] in ALLOWED_COLUMNS_TYPES}
+            self._excludedColumns = {row['column_name']: row['label_property']
+                          for row in self.iterTable(kwargs['classes']) if row['class_name'] not in ALLOWED_COLUMNS_TYPES}
 
             def _row_factory(cursor, row):
-                fields = [column[0] for column in cursor.description]
+                fields = [column[0] for column in cursor.description if column[0] not in self._excludedColumns]
                 return {self._columnsMap[tableName].get(k, k): v for k, v in zip(fields, row)}
 
             # Modify row factory to modify column names
