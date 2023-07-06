@@ -315,7 +315,7 @@ class TableView(QTableWidget):
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
-        self.propertiesTableDialog.uncheckColumns(8)
+        self.propertiesTableDialog.uncheckVisibleColumns(8)
         self.propertiesTableDialog.hideColumns()
         self.setVerticalScrollBar(self.vScrollBar)
         self.setHorizontalScrollBar(self.hScrollBar)
