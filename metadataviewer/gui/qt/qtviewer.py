@@ -35,8 +35,8 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
+from PyQt5.QtCore import Qt, QEvent
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor, QImage
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
@@ -110,6 +110,7 @@ class ColumnPropertiesTable(QDialog):
             isImageColumn = self.columns[i].getRenderer().renderType() == Image
             if self._loadFirstTime and isImageColumn:
                 self.renderCheckBoxList[i].setChecked(True)
+                self.visibleCheckBoxList[i].setChecked(True)
                 self.setLoadFirstTime(False)
             elif not isImageColumn:
                 self.renderCheckBoxList[i].setEnabled(False)
@@ -154,6 +155,7 @@ class ColumnPropertiesTable(QDialog):
         self.InsertRows()
 
     def openTableDialog(self):
+        """Open the columns properties dialog"""
         self.InsertRows()
         self.show()
 
@@ -168,6 +170,16 @@ class ColumnPropertiesTable(QDialog):
         for column, checkBox in enumerate(self.visibleCheckBoxList):
             display = not checkBox.isChecked()
             self._table.setColumnHidden(column, display)
+            self._table._loadRows()
+
+    def uncheckVisibleColumns(self, start):
+        """Hide the table columns beginning from a given column index"""
+        columnsCount = len(self.columns)
+        if columnsCount > start:
+            for i in range(start, columnsCount):
+                isImageColumn = self.columns[i].getRenderer().renderType() == Image
+                if not isImageColumn:
+                    self.visibleCheckBoxList[i].setChecked(False)
 
     def editColums(self):
         pass
@@ -178,6 +190,7 @@ class ColumnPropertiesTable(QDialog):
         self._table._fillTable()
 
     def accept(self):
+        """Accept the changes in the column properties dialog"""
         self.hideColumns()
         self.renderColums()
         self.editColums()
@@ -209,8 +222,10 @@ class CustomScrollBar(QScrollBar):
 
 class CustomWidget(QWidget):
     """Class to  custom the table cell widget"""
-    def __init__(self, data, addText=False, text=""):
+    def __init__(self, data, imagePath='', addText=False, text=''):
         super().__init__()
+        self._data = data
+        self._imagePath = imagePath
         self._layout = QHBoxLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._label = QLabel()
@@ -222,6 +237,7 @@ class CustomWidget(QWidget):
             self._label.setChecked(data)
             self._label.setEnabled(False)
             self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
+            self._type = bool
 
         elif isinstance(data, int) or isinstance(data, float) or isinstance(data, str):  # The data is a int, float or str
             if not isinstance(data, str):
@@ -256,6 +272,12 @@ class CustomWidget(QWidget):
     def widgetContent(self):
         return self._label
 
+    def getData(self):
+        return self._data
+
+    def getImagePath(self):
+        return self._imagePath
+
 
 class TableView(QTableWidget):
     """Class to represent the metadata in table mode"""
@@ -274,7 +296,7 @@ class TableView(QTableWidget):
         self._oldzoom = ZOOM_SIZE
 
     def _createTable(self, tableName):
-        # Creating the table
+        """Create the table structure"""
         self.setColumnCount(0)
         self._tableName = tableName
         self._rowsCount = self.objecManager.getTableRowCount(self._tableName)
@@ -289,10 +311,12 @@ class TableView(QTableWidget):
         self._createHeader()
         self.columns = self.objecManager.getTable(self._tableName).getColumns()
         self._columnWithImages = self.getColumnWithImages()
-        self._rowHeight = DEFAULT_ROW_HEIGHT # Default row height
+        self._rowHeight = DEFAULT_ROW_HEIGHT  # Default row height
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
+        self.propertiesTableDialog.uncheckColumns(8)
+        self.propertiesTableDialog.hideColumns()
         self.setVerticalScrollBar(self.vScrollBar)
         self.setHorizontalScrollBar(self.hScrollBar)
         self.vScrollBar.valueChanged.connect(lambda: self._loadRows())
@@ -522,9 +546,9 @@ class GalleryView(QTableWidget):
         viewportWidth = self.parent().width() if self.parent() else self.viewport().width()
         visibleCols = 0
         columnaX = 0
-        viewportWidth = viewportWidth - self.getOldZoom()
+        viewportWidth = viewportWidth - 100  # Ensuring that horizontal scrolling does not appear
         while columnaX < viewportWidth:
-            columnaX += self.getOldZoom() + 5
+            columnaX += self.getOldZoom() + 5  # Making the cells a little larger than the contents
             visibleCols += 1
         return visibleCols
 
@@ -557,7 +581,7 @@ class GalleryView(QTableWidget):
                     value = rowsValues[countImages]
                     item = renderer.render(value)
                     self.setCellWidget(currentValue + row, col,
-                                       CustomWidget(item))
+                                       CustomWidget(item, imagePath=value))
                     self.setColumnWidth(col, self.getOldZoom() + 5)
                     countImages += 1
                 self.setRowHeight(currentValue + row, self.getOldZoom() + 5)
@@ -602,6 +626,26 @@ class GalleryView(QTableWidget):
         self._actualColumn = column
 
 
+class ImageViewer(QDialog):
+    """Class to plot a selected image in the gallery"""
+    def __init__(self, image):
+        super().__init__()
+
+        self.setWindowTitle("Image Viewer")
+        self.setModal(True)
+
+        layout = QVBoxLayout(self)
+        self.label = QLabel(self)
+        layout.addWidget(self.label)
+        self._image = image
+        self.loadImage(image)
+        self.setMouseTracking(True)
+
+    def loadImage(self, image):
+        pixmap = QPixmap(image)
+        self.label.setPixmap(pixmap.scaledToWidth(600, Qt.SmoothTransformation))
+
+
 class QTMetadataViewer(QMainWindow):
     """Qt Metadata viewer window"""
     def __init__(self, args):
@@ -640,6 +684,7 @@ class QTMetadataViewer(QMainWindow):
         self.gallery = GalleryView(self.objecManager)
         self.gallery._createGallery(self.tableName)
         self.gallery.cellClicked.connect(self._galleryCellClicked)
+        self.gallery.cellDoubleClicked.connect(self.showImage)
 
         if self._galleryView:
             self._loadGalleryView()
@@ -913,6 +958,13 @@ class QTMetadataViewer(QMainWindow):
                 self._gotoItem(self.goToItem.value())
 
         self._triggeredResize = True
+
+    def showImage(self, row, column):
+        """Plot a selected image """
+        item = self.gallery.cellWidget(row, column)
+        if item:
+            viewer = ImageViewer(item._label.pixmap())
+            viewer.exec_()
 
     def enableGalleryOption(self):
         """Preference of gallery mode"""

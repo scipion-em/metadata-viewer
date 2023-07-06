@@ -28,7 +28,6 @@
 import logging
 logger = logging.getLogger()
 
-from functools import lru_cache
 import sqlite3
 from .model import IDAO
 
@@ -103,7 +102,7 @@ class SqliteFile(IDAO):
                 alias = self.composeTableAlias(self._tables[tableName])
                 self._aliases[tableName] = alias
                 labelsTypes = []
-                self._tableCount[tableName] = self.getTableRowCount(tableName)
+                self._tableCount[tableName] = self.getRowsCount(tableName)
                 for key, value in firstRow.items():
                     labelsTypes.append(_guessType(value))
                 self._labelsTypes[tableName] = labelsTypes
@@ -182,11 +181,13 @@ class SqliteFile(IDAO):
                                       str(values[self._extendedColumn[0]]) + '@' + values[self._extendedColumn[1]])
                     page.addRow((int(id), values))
 
-    @lru_cache
-    def getTableRowCount(self, tableName):
+    def getRowsCount(self, tableName):
         """ Return the number of elements in the given table. """
         logger.debug("Reading the table %s" %tableName)
         return self._con.execute(f"SELECT COUNT(*) FROM {tableName}").fetchone()['COUNT(*)']
+
+    def getTableRowCount(self, tableName):
+        return self._tableCount[tableName]
 
     def iterTable(self, tableName, **kwargs):
         """
