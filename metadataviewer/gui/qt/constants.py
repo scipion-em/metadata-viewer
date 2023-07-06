@@ -39,6 +39,7 @@ INCREASE_DECIMALS = 'gui/resources/increasedecimals.png'
 TABLE_BLOCKS = 'gui/resources/sections.png'
 PREFERENCES = 'gui/resources/preferences.png'
 ZOOM_PLUS = 'gui/resources/zoom.png'
+GOTO_ITEM = 'gui/resources/goto_item.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -55,6 +56,7 @@ REDUCE_DECIMALS_TEXT = 'Reduce decimals'
 INCREASE_DECIMALS_TEXT = 'Increase decimals'
 SORT_ASC = 'Sort ascending'
 SORT_DESC = 'Sort descending'
+GO_TO_ITEM = 'Go to item'
 
 
 # --------------TOOLBAR LABELS & VARIABLES----------------
@@ -65,6 +67,7 @@ ZOOM = 'Size in pixels'
 # ---------------------CONSTANTS-----------------
 ZOOM_SIZE = 150
 PAGE_SIZE = 50
+DEFAULT_ROW_HEIGHT = 15
 
 
 

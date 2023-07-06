@@ -35,6 +35,7 @@ from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, BoolRenderer,
 
 
 class Column:
+    """Class that represent a column"""
     def __init__(self, name, renderer=None):
         self._name = name
         self._alias = None
@@ -42,24 +43,31 @@ class Column:
         self._isSorteable = True
 
     def getName(self):
+        """Return the column name"""
         return self._name
 
     def getAlias(self):
+        """Return the column alias"""
         return self._alias
 
     def setAlias(self, alias):
+        """Set the column alias"""
         self._alias = alias
 
     def getRenderer(self):
+        """Return the column renderer"""
         return self._renderer
 
     def setRenderer(self, renderer):
+        """Set the column renderer"""
         self._renderer = renderer
 
     def isSorteable(self):
+        """Return if the column is sorteable"""
         return self._isSorteable
 
     def setIsSorteable(self, isSorteable):
+        """Set the sorteable parameter"""
         self._isSorteable = isSorteable
 
     def __str__(self):
@@ -74,18 +82,22 @@ class Column:
 
 
 class Row:
+    """Class that represent a row"""
     def __init__(self, id, values):
         self._id = id
         self._values = values
 
     def getId(self):
+        """Return the row id"""
         return self._id
 
     def getValues(self):
+        """Return the row values"""
         return self._values
 
 
 class Table:
+    """Class that represent a table"""
     def __init__(self, name, columns=None):
         self._name = name
         self._alias = None
@@ -95,41 +107,53 @@ class Table:
         self._sortingChanged = False
 
     def getName(self):
+        """Return the table name"""
         return self._name
 
     def getAlias(self):
+        """Return the table alias"""
         return self._alias
 
     def setAlias(self, alias):
+        """Set the table alias"""
         self._alias = alias
 
     def hasSortingChanged(self):
+        """Returns if the column that has been sorted has changed"""
         return self._sortingChanged
 
     def setSortingChanged(self, sortingChanged):
+        """Set the sorted column has changed"""
         self._sortingChanged = sortingChanged
 
     def getColumns(self):
+        """Return the table columns"""
         return self._columns
 
     def getSize(self):
+        """Return the table size"""
         return len(self._columns)
 
     def getSortingColumnIndex(self):
+        """Return the index of the column that has been ordered"""
         return self._sortingColumnIndex
 
     def isSortingAsc(self):
+        """Return if the column has been ordered ascendingly"""
         return self._sortingAsc
 
     def setSortingColumnIndex(self, index):
+        """Update the sorted column index"""
         self._sortingColumnIndex = index
         self._sortingChanged = True
 
     def setSortingAsc(self, ascending):
+        """Update the sort order"""
         self._sortingAsc = ascending
         self._sortingChanged = True
 
     def addColumn(self, column):
+        """Add a given column"""
         self._columns.append(column)
 
     def createColumns(self, columns, values):
@@ -158,6 +182,7 @@ class Table:
 
 
 class Page:
+    """Class that represent a Page"""
     def __init__(self, table: Table, pageNumber=1, pageSize=10):
         self._table = table
         self._rows = list()
@@ -165,15 +190,19 @@ class Page:
         self._pageSize = pageSize
 
     def getTable(self):
+        """Return the page table"""
         return self._table
 
     def getRows(self):
+        """Return the page rows"""
         return self._rows
 
     def addRow(self, row):
+        """Add a given row"""
         self._rows.append(Row(row[0], row[1]))
 
     def getSize(self):
+        """Return the number of rows that the page has"""
         return len(self._rows)
 
     def getPageSize(self):
@@ -181,15 +210,19 @@ class Page:
         return self._pageSize
 
     def setPageSize(self, pageSize):
+        """Set the page size"""
         self._pageSize = pageSize
 
     def getPageNumber(self):
+        """Return the page number"""
         return self._pageNumber
 
     def setPageNumber(self, pageNumber):
+        """Set the page number"""
         self._pageNumber = pageNumber
 
     def getFirstPageRow(self):
+        """Get the first row of the page"""
         return self._pageSize * self._pageNumber
 
     def clear(self):
@@ -207,7 +240,7 @@ class Page:
 # --------- Helper functions  ------------------------
 
 def _guessRender(strValue):
-
+    """Return a render for a given value. This render is assigned to a column"""
     if strValue is None:
         return StrRenderer()
 

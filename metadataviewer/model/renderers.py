@@ -50,7 +50,7 @@ class IRenderer:
         try:
             return self._render(value)
         except Exception as e:
-            logger.error("It is not possible to assign a renderer to this "
+            logger.info("It is not possible to assign a renderer to this "
                          "value. It will be rendered as a string: %s" % e)
             return str(value)
 
@@ -79,7 +79,7 @@ class IntRenderer(IRenderer):
 
 class FloatRenderer(IRenderer):
 
-    def __init__(self, decimalNumber: int = 4):
+    def __init__(self, decimalNumber: int = 2):
         self._decimalNumber = decimalNumber
 
     def _render(self, value):
@@ -142,22 +142,22 @@ class MRCImageReader(ImageReader):
         if len(filePath) > 1:
             index = int(filePath[0])
             fileName = filePath[-1]
-            mrc_img = mrcfile.open(fileName, permissive=True)
-            if mrc_img.is_volume():
-                imfloat = mrc_img.data[0, :, :]
+            mrcImg = mrcfile.open(fileName, permissive=True)
+            if mrcImg.is_volume():
+                imfloat = mrcImg.data[0, :, :]
             else:
-                imfloat = mrc_img.data
+                imfloat = mrcImg.data
 
             iMax = imfloat.max()
             iMin = imfloat.min()
             im255 = ((imfloat - iMin) / (iMax - iMin) * 255).astype(np.uint8)
             img = Image.fromarray(im255[index-1])
-
             return img
+        return None
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
-        return ['mrc', 'mrcs', 'em']
+        return ['mrc', 'mrcs', 'em', 'rec', 'ali']
 
 
 class STKImageReader(ImageReader):
@@ -174,7 +174,6 @@ class STKImageReader(ImageReader):
         if len(stk) > 1:
             image = cls.read(stk[-1], int(stk[0]))
             return image
-        raise Exception('Can not renderer this image.')
 
     @classmethod
     def read(cls, filename, id):
