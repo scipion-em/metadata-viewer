@@ -935,16 +935,17 @@ class QTMetadataViewer(QMainWindow):
                 self.gallery = widget
         self._galleryView = False
         self._tableView = True
-        self.table.setActualRowColumn(0, 0)
         galleryEnable = True if self._columnWithImages else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
         self.gotoTableAction.setEnabled(False)
         self.setCentralWidget(self.table)
         self.bockTableName.setEnabled(True)
         self.table._fillTable()
+        self.table.setActualRowColumn(self.goToItem.value(),
+                                      self.table.getActualColumn())
         self.enableTableOptions(self.table.getActualRow(),
                                 self.table.getActualColumn())
-        self._gotoItem(self.goToItem.value())
+        self._gotoItem(self.goToItem.value(), moveScroll=True)
 
     def _loadGalleryView(self):
         """Load the data in a gallary mode"""
@@ -960,7 +961,7 @@ class QTMetadataViewer(QMainWindow):
         self.setCentralWidget(self.gallery)
         self.enableGalleryOption()
         self.gallery._update()
-        self._gotoItem(self.goToItem.value())
+        self._gotoItem(self.goToItem.value(), moveScroll=True)
 
     def selectTable(self):
         """Method that control the tables when are selected in the tables
@@ -1002,7 +1003,7 @@ class QTMetadataViewer(QMainWindow):
         if self._triggeredResize:
             if self._galleryView:
                 self.gallery._update()
-                self._gotoItem(self.goToItem.value())
+                self._gotoItem(self.goToItem.value(), moveScroll=False)
             else:
                 self.table._loadRows()
 
@@ -1039,7 +1040,6 @@ class QTMetadataViewer(QMainWindow):
         self.goToItem.setValue(row + 1)
         self._triggeredGotoItem = True
         self._gotoItem(row + 1, moveScroll=False)
-        self._updateStatusBar()
 
     def _galleryCellClicked(self, row, column):
         """Event that control the gallery when click in a image"""
@@ -1049,7 +1049,6 @@ class QTMetadataViewer(QMainWindow):
         self.goToItem.setValue(index)
         self._triggeredGotoItem = True
         self._gotoItem(index, moveScroll=False)
-        self._updateStatusBar()
 
     def _gotoCurrentItem(self, itemIndex):
         if self._triggeredGotoItem:
@@ -1066,19 +1065,17 @@ class QTMetadataViewer(QMainWindow):
             columnsCount = self.gallery.getColumnsCount()
             col = itemIndex % columnsCount
             row = itemIndex // columnsCount
-            model = self.gallery.model()
-            index = model.index(row, col)
-            self.gallery.setCurrentCell(index.row(), index.column())
             self.gallery.setActualRowColumn(row, col)
             if moveScroll:
                 self.gallery.vScrollBar.setValue(row)
+            self.gallery.setCurrentCell(row, col)
 
         else:
             self.table.setActualRowColumn(itemIndex,
                                           self.table.getActualColumn())
             if moveScroll:
                 self.table.vScrollBar.setValue(itemIndex)
-
+        self._updateStatusBar()
 
     def _redIncDecimals(self, flag):
         """Method that control the increments or reduce decimals when a float
