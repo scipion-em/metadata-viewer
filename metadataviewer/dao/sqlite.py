@@ -171,6 +171,7 @@ class SqliteFile(IDAO):
         self.updateExtendColumn(page.getTable())
 
         for row in self.iterTable(tableName, start=firstRow, limit=limit,
+                                  classes=self._tables[tableName],
                                   orderBy=column, mode=mode):
             if row:
                 if 'id' in row.keys():
@@ -235,8 +236,9 @@ class SqliteFile(IDAO):
                           for row in self.iterTable(kwargs['classes']) if row['class_name'] not in ALLOWED_COLUMNS_TYPES}
 
             def _row_factory(cursor, row):
-                fields = [column[0] for column in cursor.description if column[0] not in self._excludedColumns]
-                return {self._columnsMap[tableName].get(k, k): v for k, v in zip(fields, row)}
+                fields = [column[0] for column in cursor.description]
+                rowFact = {self._columnsMap[tableName].get(k, k): v for k, v in zip(fields, row) if k not in self._excludedColumns}
+                return rowFact
 
             # Modify row factory to modify column names
             self._con.row_factory = _row_factory
