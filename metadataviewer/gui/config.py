@@ -25,54 +25,35 @@
 # *
 # **************************************************************************
 
-#  -------ICONS----------
+import os
 
-DOWN_ARROW = 'down-arrow.png'
-UP_ARROW = 'up-arrow.png'
-FOLDER = 'folder.png'
-EXIT = 'exit.png'
-TABLE = 'table.png'
-TABLE_VIEW = 'table-view.png'
-GALLERY_VIEW = 'gallery.png'
-REDUCE_DECIMALS = 'reducedecimals.png'
-INCREASE_DECIMALS = 'increasedecimals.png'
-TABLE_BLOCKS = 'sections.png'
-PREFERENCES = 'preferences.png'
-ZOOM_PLUS = 'zoom.png'
-GOTO_ITEM = 'goto_item.png'
-
-# -------LABELS PROPERTIES_TABLE ------------
-LABEL = 'Label'
-VISIBLE = 'Visible'
-RENDER = 'Render'
-EDIT = 'Edit'
-
-# ------------ACTIONS TEXTS-------------------------
-
-COLUMNS = 'Columns...'
-GO_TO_TABLE_VIEW = "Go to TABLE view"
-GO_TO_GALLERY_VIEW = 'Go to GALLERY view'
-REDUCE_DECIMALS_TEXT = 'Reduce decimals'
-INCREASE_DECIMALS_TEXT = 'Increase decimals'
-SORT_ASC = 'Sort ascending'
-SORT_DESC = 'Sort descending'
-GO_TO_ITEM = 'Go to item'
+HOME = os.path.abspath(os.path.dirname(__file__))
 
 
-# --------------TOOLBAR LABELS & VARIABLES----------------
-
-BLOCKS = 'Tables'
-ZOOM = 'Size in pixels'
-
-# ---------------------CONSTANTS-----------------
-ZOOM_SIZE = 150
-PAGE_SIZE = 50
-DEFAULT_ROW_HEIGHT = 15
-DEFAULT_STATUS_BAR_HEIGHT = 30
-MAX_ITEMS_INDEX = 8000000
+def join(*paths):
+    """ join paths from HOME . """
+    return os.path.join(HOME, *paths)
 
 
+__resourcesPath = [join('resources')]
 
 
+def getImage(filename):
+    return findFile(filename, *__resourcesPath)
+
+
+def findFile(filename, *paths):
+    """
+    Search if a file/folder is present in any of the paths provided.
+    :param filename: Name (myfile.txt) of the file to look for.
+    :param paths: N number of folders to look at.
+    :return: None if nothing is found.
+    """
+    if filename:
+        for p in paths:
+            fn = os.path.join(p, filename)
+            if os.path.exists(fn):
+                return fn
+    return None
 
 

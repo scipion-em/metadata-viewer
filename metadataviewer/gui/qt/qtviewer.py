@@ -26,8 +26,6 @@
 # **************************************************************************
 import logging
 
-from PIL.ImageQt import ImageQt
-
 logger = logging.getLogger()
 
 import os.path
@@ -45,6 +43,7 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
+from metadataviewer.gui import getImage
 
 
 class ColumnPropertiesTable(QDialog):
@@ -370,7 +369,7 @@ class TableView(QTableWidget):
         self.vScrollBar.setValue(0)
         self._loadRows()
 
-        icon = QIcon(DOWN_ARROW) if self._orderAsc else QIcon(UP_ARROW)
+        icon = QIcon(getImage(DOWN_ARROW)) if self._orderAsc else QIcon(getImage(UP_ARROW))
         self.horizontalHeaderItem(column).setIcon(icon)
 
     def _createHeader(self):
@@ -536,7 +535,7 @@ class GalleryView(QTableWidget):
     def _defineStyles(self):
         """Define the gallery styles. Create a border to the selected image"""
         self.setStyleSheet(""" QTableWidget::item:selected { border: 1.5px dashed red; }"""
-                           """ QTableWidget::item:focus { border: 1.5px dashed red;} """)
+                           """ QTableWidget::item:focus { border: 1.5px dashed blue;} """)
 
     def getRenderer(self):
         return self._renderer
@@ -738,49 +737,49 @@ class QTMetadataViewer(QMainWindow):
         self.newAction = QAction(self)
         self.newAction.setText("&Open...")
         self.newAction.setShortcut(QKeySequence("Ctrl+O"))
-        self.newAction.setIcon(QIcon(FOLDER))
+        self.newAction.setIcon(QIcon(getImage(FOLDER)))
 
         self.exitAction = QAction(self)
         self.exitAction.setText("E&xit")
         self.exitAction.setShortcut(QKeySequence("Ctrl+X"))
-        self.exitAction.setIcon(QIcon(EXIT))
+        self.exitAction.setIcon(QIcon(getImage(EXIT)))
         self.exitAction.triggered.connect(sys.exit)
 
         # Display actions
         self.table.propertiesTableAction = QAction(COLUMNS, self)
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
-        self.table.propertiesTableAction.setIcon(QIcon(PREFERENCES))
+        self.table.propertiesTableAction.setIcon(QIcon(getImage(PREFERENCES)))
         if self._galleryView:
             self.table.propertiesTableAction.setEnabled(False)
 
         # Toolbar action
         self.gotoTableAction = QAction(GO_TO_TABLE_VIEW, self)
-        self.gotoTableAction.setIcon(QIcon(TABLE_VIEW))
+        self.gotoTableAction.setIcon(QIcon(getImage(TABLE_VIEW)))
         self.gotoTableAction.setEnabled(False)
         self.gotoTableAction.triggered.connect(self._loadTableView)
 
         self.gotoGalleryAction = QAction(GO_TO_GALLERY_VIEW, self)
-        self.gotoGalleryAction.setIcon(QIcon(GALLERY_VIEW))
+        self.gotoGalleryAction.setIcon(QIcon(getImage(GALLERY_VIEW)))
         self.gotoGalleryAction.triggered.connect(self._loadGalleryView)
 
         # Columns  Toolbar action
         self.reduceDecimals = QAction(REDUCE_DECIMALS_TEXT, self)
-        self.reduceDecimals.setIcon(QIcon(REDUCE_DECIMALS))
+        self.reduceDecimals.setIcon(QIcon(getImage(REDUCE_DECIMALS)))
         self.reduceDecimals.setEnabled(False)
         self.reduceDecimals.triggered.connect(lambda:  self._redIncDecimals(True))
 
         self.increaseDecimals = QAction(INCREASE_DECIMALS_TEXT, self)
-        self.increaseDecimals.setIcon(QIcon(INCREASE_DECIMALS))
+        self.increaseDecimals.setIcon(QIcon(getImage(INCREASE_DECIMALS)))
         self.increaseDecimals.setEnabled(False)
         self.increaseDecimals.triggered.connect(lambda: self._redIncDecimals(False))
 
         self.sortUp = QAction(SORT_ASC, self)
-        self.sortUp.setIcon(QIcon(DOWN_ARROW))
+        self.sortUp.setIcon(QIcon(getImage(DOWN_ARROW)))
         self.sortUp.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), True))
 
         self.sortDown = QAction(SORT_DESC, self)
-        self.sortDown.setIcon(QIcon(UP_ARROW))
+        self.sortDown.setIcon(QIcon(getImage(UP_ARROW)))
         self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
 
     def _createMenuBar(self):
@@ -820,7 +819,7 @@ class QTMetadataViewer(QMainWindow):
         self.blockLabelIcon = QLabel('\t')
         toolBar.addWidget(self.blockLabelIcon)
         self.blockLabel = QLabel(BLOCKS)
-        icon = QIcon(TABLE_BLOCKS)
+        icon = QIcon(getImage(TABLE_BLOCKS))
         self.blockLabel.setPixmap(icon.pixmap(16, 16))
         self.blockLabel.setToolTip(BLOCKS)
         toolBar.addWidget(self.blockLabel)
@@ -829,7 +828,7 @@ class QTMetadataViewer(QMainWindow):
         for tableName in self.tableNames:
             self.bockTableName.addItem(self.tableAliases[tableName])
         for i in range(len(self.tableNames)):
-            self.bockTableName.setItemIcon(i, QIcon(TABLE))
+            self.bockTableName.setItemIcon(i, QIcon(getImage(TABLE)))
             # Connect signals to the methods.
         self.bockTableName.activated.connect(self.selectTable)
         self.bockTableName.setToolTip(BLOCKS)
@@ -838,8 +837,8 @@ class QTMetadataViewer(QMainWindow):
         # Columns tool bar
         columnsToolBar2 = self.addToolBar("")
 
-        self.zoomLabel = QLabel(ZOOM)
-        icon = QIcon(ZOOM_PLUS)
+        self.zoomLabel = QLabel(getImage(ZOOM))
+        icon = QIcon(getImage(ZOOM_PLUS))
         self.zoomLabel.setPixmap(icon.pixmap(20, 20))
         self.zoomLabel.setToolTip(ZOOM)
         self.zoomLabel.setEnabled(False)
@@ -855,12 +854,12 @@ class QTMetadataViewer(QMainWindow):
         self.zoom.valueChanged.connect(self._renderImage)
 
         self.gotoItemLabel = QLabel(GO_TO_ITEM)
-        icon = QIcon(GOTO_ITEM)
+        icon = QIcon(getImage(GOTO_ITEM))
         self.gotoItemLabel.setPixmap(icon.pixmap(20, 20))
         self.gotoItemLabel.setToolTip(GO_TO_ITEM)
         self.gotoItemLabel.setEnabled(True)
         self.goToItem = QSpinBox()
-        self.goToItem.setMaximum(8000000)
+        self.goToItem.setMaximum(MAX_ITEMS_INDEX)
         self.goToItem.setMinimum(1)
         self.goToItem.setValue(1)
         self.goToItem.setToolTip(GO_TO_ITEM)
@@ -930,9 +929,9 @@ class QTMetadataViewer(QMainWindow):
     def _loadTableView(self):
         """Load the data in a table mode"""
         if self._galleryView:
-            widget = self.takeCentralWidget()
-            if widget:
-                self.gallery = widget
+            gallery = self.takeCentralWidget()
+            if gallery:
+                self.gallery = gallery
         self._galleryView = False
         self._tableView = True
         galleryEnable = True if self._columnWithImages else False
@@ -945,14 +944,14 @@ class QTMetadataViewer(QMainWindow):
                                       self.table.getActualColumn())
         self.enableTableOptions(self.table.getActualRow(),
                                 self.table.getActualColumn())
-        self._gotoItem(self.goToItem.value(), moveScroll=True)
+        self._gotoItem(self.goToItem.value())
 
     def _loadGalleryView(self):
-        """Load the data in a gallary mode"""
+        """Load the data in the gallary mode"""
         if self._tableView:
-            widget = self.takeCentralWidget()
-            if widget:
-                self.table = widget
+            table = self.takeCentralWidget()
+            if table:
+                self.table = table
 
         self._galleryView = True
         self._tableView = False
@@ -961,7 +960,7 @@ class QTMetadataViewer(QMainWindow):
         self.setCentralWidget(self.gallery)
         self.enableGalleryOption()
         self.gallery._update()
-        self._gotoItem(self.goToItem.value(), moveScroll=True)
+        self._gotoItem(self.goToItem.value())
 
     def selectTable(self):
         """Method that control the tables when are selected in the tables
@@ -1039,7 +1038,8 @@ class QTMetadataViewer(QMainWindow):
         self._triggeredGotoItem = False
         self.goToItem.setValue(row + 1)
         self._triggeredGotoItem = True
-        self._gotoItem(row + 1, moveScroll=False)
+        self.table.setActualRowColumn(row + 1, self.table.getActualColumn())
+        self._updateStatusBar()
 
     def _galleryCellClicked(self, row, column):
         """Event that control the gallery when click in a image"""
@@ -1048,11 +1048,12 @@ class QTMetadataViewer(QMainWindow):
         self._triggeredGotoItem = False
         self.goToItem.setValue(index)
         self._triggeredGotoItem = True
-        self._gotoItem(index, moveScroll=False)
+        self.gallery.setActualRowColumn(row, self.gallery.getActualColumn())
+        self._updateStatusBar()
 
     def _gotoCurrentItem(self, itemIndex):
         if self._triggeredGotoItem:
-            self._gotoItem(itemIndex, moveScroll=True)
+            self._gotoItem(itemIndex)
 
     def _gotoItem(self, itemIndex, moveScroll=True):
         """Event that allows locating an item given the index  """
@@ -1065,10 +1066,10 @@ class QTMetadataViewer(QMainWindow):
             columnsCount = self.gallery.getColumnsCount()
             col = itemIndex % columnsCount
             row = itemIndex // columnsCount
-            self.gallery.setActualRowColumn(row, col)
             if moveScroll:
                 self.gallery.vScrollBar.setValue(row)
             self.gallery.setCurrentCell(row, col)
+            self.gallery.setActualRowColumn(row, col)
 
         else:
             self.table.setActualRowColumn(itemIndex,
