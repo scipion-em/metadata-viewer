@@ -40,6 +40,7 @@ TABLE_BLOCKS = 'sections.png'
 PREFERENCES = 'preferences.png'
 ZOOM_PLUS = 'zoom.png'
 GOTO_ITEM = 'goto_item.png'
+HIDE = 'hide.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -57,6 +58,8 @@ INCREASE_DECIMALS_TEXT = 'Increase decimals'
 SORT_ASC = 'Sort ascending'
 SORT_DESC = 'Sort descending'
 GO_TO_ITEM = 'Go to item'
+
+HIDE_COLUMN = 'Hide column'
 
 
 # --------------TOOLBAR LABELS & VARIABLES----------------

@@ -33,8 +33,8 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor, QImage
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
@@ -100,9 +100,7 @@ class ColumnPropertiesTable(QDialog):
 
         for i in range(self.numRow):
             # checking visible column
-            if self.columns[i].getName() in tableHeaderList:
-                self.visibleCheckBoxList[i].setChecked(True)
-            else:
+            if not self.columns[i].getName() in tableHeaderList:
                self.visibleCheckBoxList[i].setChecked(False)
 
             # checking render column
@@ -144,13 +142,14 @@ class ColumnPropertiesTable(QDialog):
         self.renderCheckBoxList = []
         self.editCheckBoxList = []
         for i in range(self.numRow):
-            ckbox = QCheckBox()
-            ckbox1 = QCheckBox()
-            ckbox2 = QCheckBox()
-            ckbox2.setEnabled(False)
-            self.visibleCheckBoxList.append(ckbox)
-            self.renderCheckBoxList.append(ckbox1)
-            self.editCheckBoxList.append(ckbox2)
+            visibleCheckBox = QCheckBox()
+            visibleCheckBox.setChecked(True)
+            renderCheckBox = QCheckBox()
+            editCheckBox = QCheckBox()
+            editCheckBox.setEnabled(False)
+            self.visibleCheckBoxList.append(visibleCheckBox)
+            self.renderCheckBoxList.append(renderCheckBox)
+            self.editCheckBoxList.append(editCheckBox)
         self.InsertRows()
 
     def openTableDialog(self):
@@ -169,6 +168,10 @@ class ColumnPropertiesTable(QDialog):
         for column, checkBox in enumerate(self.visibleCheckBoxList):
             display = not checkBox.isChecked()
             self._table.setColumnHidden(column, display)
+
+    def hideColumn(self, column):
+        self.visibleCheckBoxList[column].setChecked(False)
+        self._table.setColumnHidden(column, True)
 
     def uncheckVisibleColumns(self, start):
         """Hide the table columns beginning from a given column index"""
@@ -676,6 +679,9 @@ class QTMetadataViewer(QMainWindow):
         self.table._createTable(self.tableName)
         self.table.cellClicked.connect(self._tableCellClicked)
         self.table.verticalHeader().sectionClicked.connect(self.onVerticalHeaderClicked)
+        self.table.horizontalHeader().setContextMenuPolicy(3)
+        self.table.horizontalHeader().customContextMenuRequested.connect(self.showContextMenu)
+
         self._columnWithImages = self.table.getColumnWithImages()
 
         self._createActions()
@@ -693,6 +699,30 @@ class QTMetadataViewer(QMainWindow):
             self._loadGalleryView()
         else:
             self._loadTableView()
+
+    def showContextMenu(self, pos):
+        # Obtaining the column
+        col = self.table.horizontalHeader().logicalIndexAt(pos.x())
+        self.table.setActualColumn(col)
+        # Creating the contextual menu
+        contextMenu = QMenu(self)
+
+        # Hide column action
+        hideColumnAction = QAction(HIDE_COLUMN, self)
+        hideColumnAction.setIcon(QIcon(getImage(HIDE)))
+        hideColumnAction.triggered.connect(lambda: self.hideColumn(col))
+        contextMenu.addAction(hideColumnAction)
+        contextMenu.addAction(self.sortUp)
+        contextMenu.addAction(self.sortDown)
+        contextMenu.addAction(self.reduceDecimals)
+        contextMenu.addAction(self.increaseDecimals)
+
+        # Showing the menu
+        contextMenu.exec_(self.table.mapToGlobal(pos))
+
+    def hideColumn(self, col):
+        """ Hide the table column"""
+        self.table.propertiesTableDialog.hideColumn(col)
 
     def setDarkTheme(self):
         """Dark theme"""
