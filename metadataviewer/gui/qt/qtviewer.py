@@ -701,6 +701,7 @@ class QTMetadataViewer(QMainWindow):
             self._loadTableView()
 
     def showContextMenu(self, pos):
+        """Show the contextual menu when a column is selected by right-click"""
         # Obtaining the column
         col = self.table.horizontalHeader().logicalIndexAt(pos.x())
         self.table.setActualColumn(col)
@@ -712,6 +713,8 @@ class QTMetadataViewer(QMainWindow):
         hideColumnAction.setIcon(QIcon(getImage(HIDE)))
         hideColumnAction.triggered.connect(lambda: self.hideColumn(col))
         contextMenu.addAction(hideColumnAction)
+
+        # Adding toolbar actions
         contextMenu.addAction(self.sortUp)
         contextMenu.addAction(self.sortDown)
         contextMenu.addAction(self.reduceDecimals)
@@ -723,6 +726,7 @@ class QTMetadataViewer(QMainWindow):
     def hideColumn(self, col):
         """ Hide the table column"""
         self.table.propertiesTableDialog.hideColumn(col)
+        self.table._fillTable()
 
     def setDarkTheme(self):
         """Dark theme"""
