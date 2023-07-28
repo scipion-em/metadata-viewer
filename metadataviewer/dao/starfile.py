@@ -196,6 +196,11 @@ class StarFile(IDAO):
                            reverse=not sortAsc)
         self._tableData[tableName] = orderList
 
+    def getTableWithAdditionalInfo(self):
+        """Return a tuple with the table that need to show additional info and
+        the column that we need to show"""
+        return None
+
 # -----------------------------------Utils methods -----------------------
 
 

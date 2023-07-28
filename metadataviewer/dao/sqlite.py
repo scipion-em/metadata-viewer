@@ -31,8 +31,10 @@ logger = logging.getLogger()
 import sqlite3
 from .model import IDAO
 
-EXTENDED_COLUMN_NAME = '_index@_filename'
+EXTENDED_COLUMN_NAME = '_representative'
 ALLOWED_COLUMNS_TYPES = ['String', 'Float', 'Integer', 'Boolean', 'Matrix']
+ADITIONAL_INFO_DISPLAY_COLUMN_LIST = ['_size', 'id']
+EXCLUDED_COLUMNS = ['label', 'comment', 'creation', '_streamState']
 
 
 class SqliteFile(IDAO):
@@ -49,6 +51,7 @@ class SqliteFile(IDAO):
         self._aliases = {}
         self._columnsMap = {}
         self._extendedColumn = None
+        self._tableWithAdditionalInfo = None
 
     def __loadDB(self, sqliteFile):
         """Load a sqlite file"""
@@ -99,15 +102,18 @@ class SqliteFile(IDAO):
             for tableName in self._names:
                 # Getting the first row to identify the labels and theirs type
                 firstRow = self.getTableRow(tableName, 0, classes=self._tables[tableName])
-                self._labels[tableName] = list(firstRow.keys())
+                self._labels[tableName] = [key for key in firstRow.keys() if key not in EXCLUDED_COLUMNS]
                 alias = self.composeTableAlias(self._tables[tableName])
                 self._aliases[tableName] = alias
                 labelsTypes = []
                 self._tableCount[tableName] = self.getRowsCount(tableName)
                 for key, value in firstRow.items():
-                    labelsTypes.append(_guessType(value))
+                    if key not in EXCLUDED_COLUMNS:
+                        labelsTypes.append(_guessType(value))
                 self._labelsTypes[tableName] = labelsTypes
 
+        if len(self._tables) > 1:
+            self._tableWithAdditionalInfo = 'objects'
         return self._names
 
     def findColbyName(self, colNames, colName):
@@ -146,12 +152,12 @@ class SqliteFile(IDAO):
         colNames = self._labels[tableName]
         self.updateExtendColumn(table)
 
-        values = list(self.getTableRow(tableName, 0,
-                                       classes=self._tables[tableName]).values())
+        row = self.getTableRow(tableName, 0, classes=self._tables[tableName])
+        values = [value for key, value in row.items() if key not in EXCLUDED_COLUMNS]
         if self._extendedColumn:
             logger.debug("Creating an extended column: %s" % EXTENDED_COLUMN_NAME)
             colNames.insert(self._extendedColumn[1] + 1, EXTENDED_COLUMN_NAME)
-            values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + values[self._extendedColumn[1]])
+            values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + str(values[self._extendedColumn[1]]))
         table.createColumns(colNames, values)
         table.setAlias(self._aliases[tableName])
 
@@ -176,7 +182,7 @@ class SqliteFile(IDAO):
             if row:
                 if 'id' in row.keys():
                     id = row['id']
-                    values = list(row.values())
+                    values = [value for key, value in row.items() if key not in EXCLUDED_COLUMNS]
                     # Checking if exists an extended column
                     if self.hasExtendedColumn():
                         values.insert(self._extendedColumn[1] + 1,
@@ -265,6 +271,11 @@ class SqliteFile(IDAO):
         kwargs['limit'] = 1
         for row in self.iterTable(tableName, **kwargs):
             return row
+
+    def getTableWithAdditionalInfo(self):
+        """Return a tuple with the table that need to show additional info and
+        the column that we need to show"""
+        return self._tableWithAdditionalInfo, ADITIONAL_INFO_DISPLAY_COLUMN_LIST
 
     def close(self):
         if getattr(self, '_con', None):

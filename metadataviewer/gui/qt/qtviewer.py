@@ -227,7 +227,7 @@ class CustomWidget(QWidget):
         super().__init__()
         self._data = data
         self._imagePath = imagePath
-        self._layout = QHBoxLayout()
+        self._layout = QVBoxLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._label = QLabel()
         self._adicinalText = QLabel(text)
@@ -255,13 +255,11 @@ class CustomWidget(QWidget):
 
                 pixmap = QPixmap.fromImage(qimage)
                 self._label.setPixmap(pixmap)
-                self._label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-                self._layout.addWidget(self._label)
+                self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
                 self._type = Image
 
                 if addText:
-                    self._adicinalText.setAlignment(Qt.AlignBottom)
-                    self._layout.addWidget(self._adicinalText)
+                    self._layout.addWidget(self._adicinalText, alignment=Qt.AlignCenter)
             except Exception as e:
                 logger.error("Error loading the image:", e)
 
@@ -313,6 +311,7 @@ class TableView(QTableWidget):
         self._createHeader()
         self.columns = self.objecManager.getTable(self._tableName).getColumns()
         self._columnWithImages = self.getColumnWithImages()
+        self.tableWithAdditionalInfo = self.objecManager.getTableWithAdditionalInfo()
         self._rowHeight = DEFAULT_ROW_HEIGHT  # Default row height
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
@@ -427,17 +426,32 @@ class TableView(QTableWidget):
             for col in range(currenctColumnIndex, endColumn):
                 if self._columns[col].getRenderer().renderType() != Image:
                     item = self._columns[col].getRenderer().render(values[col])
+                    widget = CustomWidget(item)
                 else:
                     if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
                         item = self._columns[col].getRenderer().render(values[col])
+                        if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
+                            text = self.composeAdditionaInfo(rowValues)
+                            widget = CustomWidget(item, addText=True, text=text)
+                        else:
+                            widget = CustomWidget(item)
                     else:
                         item = values[col]
+                        widget = CustomWidget(item)
 
-                widget = CustomWidget(item)
                 self.setCellWidget(i + currentRowIndex, col, widget)
                 self.resizeColumnToContents(col)
                 self.setColumnWidth(col, self.columnWidth(col) + 5)
             self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
+
+    def composeAdditionaInfo(self, rowValues):
+        text = ''
+        columns = self.tableWithAdditionalInfo[1]
+        values = rowValues.getValues()
+        for i, column in enumerate(self.columns):
+            if column.getName() in columns:
+                text += column.getName() + '=' + str(values[i]) + ' '
+        return text
 
     def _loadRows(self):
         """Load the table rows"""
@@ -516,6 +530,7 @@ class GalleryView(QTableWidget):
         self._columnsCount = self._calculateVisibleColumns()
         self._rowsCount = self._calculateVisibleRows()
         self._columnWithImages = self.getColumnWithImages()
+        self.tableWithAdditionalInfo = self.objecManager.getTableWithAdditionalInfo()
         if self._columnWithImages:
             self._renderer = self._columns[self._columnWithImages].getRenderer()
         else:
@@ -590,13 +605,32 @@ class GalleryView(QTableWidget):
                         break
                     value = rowsValues[countImages]
                     item = renderer.render(value)
-                    self.setCellWidget(currentValue + row, col,
-                                       CustomWidget(item, imagePath=value))
+                    if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
+                        currentRow = rows[countImages]
+                        text = self.composeAdditionaInfo(currentRow)
+                        widget = CustomWidget(item, imagePath=value,
+                                              addText=True,
+                                              text=text)
+                    else:
+                        widget = CustomWidget(item, imagePath=value)
+
+                    self.setCellWidget(currentValue + row, col, widget)
                     self.setColumnWidth(col, self.getOldZoom() + 5)
                     countImages += 1
                 self.setRowHeight(currentValue + row, self.getOldZoom() + 5)
                 if seekFirstImage + countImages == self._tableSize:
                     break
+
+    def composeAdditionaInfo(self, rowValues):
+        text = ''
+        columnsWithInfo = self.tableWithAdditionalInfo[1]
+        values = rowValues.getValues()
+        table = self.objecManager.getTable(self._tableName)
+        columns = table.getColumns()
+        for i, column in enumerate(columns):
+            if column.getName() in columnsWithInfo:
+                text += column.getName() + '=' + str(values[i]) + ' '
+        return text
 
     def _loadImages(self):
         """Load the gallery images"""
