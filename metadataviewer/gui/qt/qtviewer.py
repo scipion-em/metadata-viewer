@@ -26,6 +26,9 @@
 # **************************************************************************
 import logging
 
+import numpy
+import numpy as np
+
 logger = logging.getLogger()
 
 import os.path
@@ -245,6 +248,13 @@ class CustomWidget(QWidget):
                 self._type = int if isinstance(data, int) else float
             self._label.setText(str(data))
             self._layout.addWidget(self._label, alignment=Qt.AlignRight)
+
+        elif isinstance(data, numpy.ndarray):  # The data is a Matrix
+            self._type = numpy.ndarray
+            matrix = str(data).split('],')
+            for i, row in enumerate(matrix):
+                label = QLabel(row + '],') if i < len(matrix)-1 else QLabel(row)
+                self._layout.addWidget(label, alignment=Qt.AlignJustify)
 
         else:  # Assuming the data is a file path to an image
             try:
@@ -975,7 +985,8 @@ class QTMetadataViewer(QMainWindow):
 
         item = self.table.cellWidget(row, column)
         if item:
-            if item.widgetType() == float:
+            itemType = item.widgetType()
+            if itemType == float or itemType == np.ndarray:
                 self.reduceDecimals.setEnabled(True)
                 self.increaseDecimals.setEnabled(True)
             else:
