@@ -178,6 +178,9 @@ class ObjectManager:
         table.setSortingColumnIndex(column)
         table.setSortingAsc(reverse)
 
+    def getTableWithAdditionalInfo(self):
+        return self._dao.getTableWithAdditionalInfo()
+
 
 
 

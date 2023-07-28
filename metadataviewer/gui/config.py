@@ -25,35 +25,35 @@
 # *
 # **************************************************************************
 
-import sys
-import argparse
-from PyQt5.QtWidgets import QApplication
+import os
 
-from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
-
-QT_VIEWER = 'qtviewer'
+HOME = os.path.abspath(os.path.dirname(__file__))
 
 
-def defineArgs():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fileName", help="File to be displayed by the dataviewer ")
-    parser.add_argument("--viewer", help="Select a viewer implementation (qtviewer, tkviewer, terminal)", default=QT_VIEWER)
-    parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
-    parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
-    parser.add_argument("--darktheme", help="Load the viewer with a dark theme", action="store_true", default=False)
-    return parser
+def join(*paths):
+    """ join paths from HOME . """
+    return os.path.join(HOME, *paths)
 
 
-def main():
-    parser = defineArgs()
-    argsList = sys.argv[1:]
-    args = parser.parse_args(argsList)
-    app = QApplication(sys.argv)
-    if args.viewer == QT_VIEWER:
-        window = QTMetadataViewer(args)
-        window.show()
-    sys.exit(app.exec_())
+__resourcesPath = [join('resources')]
 
 
-if __name__ == "__main__":
-    main()
+def getImage(filename):
+    return findFile(filename, *__resourcesPath)
+
+
+def findFile(filename, *paths):
+    """
+    Search if a file/folder is present in any of the paths provided.
+    :param filename: Name (myfile.txt) of the file to look for.
+    :param paths: N number of folders to look at.
+    :return: None if nothing is found.
+    """
+    if filename:
+        for p in paths:
+            fn = os.path.join(p, filename)
+            if os.path.exists(fn):
+                return fn
+    return None
+
+

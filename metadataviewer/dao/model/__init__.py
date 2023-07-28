@@ -64,3 +64,7 @@ class IDAO:
     @abstractmethod
     def getTableRowCount(self, tableName: str) -> int:
         pass
+
+    @abstractmethod
+    def getTableWithAdditionalInfo(self):
+        pass

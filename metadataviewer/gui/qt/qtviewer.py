@@ -26,8 +26,6 @@
 # **************************************************************************
 import logging
 
-from PIL.ImageQt import ImageQt
-
 logger = logging.getLogger()
 
 import os.path
@@ -35,8 +33,8 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QEvent
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor, QImage
+from PyQt5.QtCore import Qt
+from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
@@ -45,6 +43,7 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
+from metadataviewer.gui import getImage
 
 
 class ColumnPropertiesTable(QDialog):
@@ -101,9 +100,7 @@ class ColumnPropertiesTable(QDialog):
 
         for i in range(self.numRow):
             # checking visible column
-            if self.columns[i].getName() in tableHeaderList:
-                self.visibleCheckBoxList[i].setChecked(True)
-            else:
+            if not self.columns[i].getName() in tableHeaderList:
                self.visibleCheckBoxList[i].setChecked(False)
 
             # checking render column
@@ -145,13 +142,14 @@ class ColumnPropertiesTable(QDialog):
         self.renderCheckBoxList = []
         self.editCheckBoxList = []
         for i in range(self.numRow):
-            ckbox = QCheckBox()
-            ckbox1 = QCheckBox()
-            ckbox2 = QCheckBox()
-            ckbox2.setEnabled(False)
-            self.visibleCheckBoxList.append(ckbox)
-            self.renderCheckBoxList.append(ckbox1)
-            self.editCheckBoxList.append(ckbox2)
+            visibleCheckBox = QCheckBox()
+            visibleCheckBox.setChecked(True)
+            renderCheckBox = QCheckBox()
+            editCheckBox = QCheckBox()
+            editCheckBox.setEnabled(False)
+            self.visibleCheckBoxList.append(visibleCheckBox)
+            self.renderCheckBoxList.append(renderCheckBox)
+            self.editCheckBoxList.append(editCheckBox)
         self.InsertRows()
 
     def openTableDialog(self):
@@ -170,7 +168,10 @@ class ColumnPropertiesTable(QDialog):
         for column, checkBox in enumerate(self.visibleCheckBoxList):
             display = not checkBox.isChecked()
             self._table.setColumnHidden(column, display)
-            self._table._loadRows()
+
+    def hideColumn(self, column):
+        self.visibleCheckBoxList[column].setChecked(False)
+        self._table.setColumnHidden(column, True)
 
     def uncheckVisibleColumns(self, start):
         """Hide the table columns beginning from a given column index"""
@@ -226,7 +227,7 @@ class CustomWidget(QWidget):
         super().__init__()
         self._data = data
         self._imagePath = imagePath
-        self._layout = QHBoxLayout()
+        self._layout = QVBoxLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._label = QLabel()
         self._adicinalText = QLabel(text)
@@ -254,13 +255,11 @@ class CustomWidget(QWidget):
 
                 pixmap = QPixmap.fromImage(qimage)
                 self._label.setPixmap(pixmap)
-                self._label.setAlignment(Qt.AlignTop | Qt.AlignCenter)
-                self._layout.addWidget(self._label)
+                self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
                 self._type = Image
 
                 if addText:
-                    self._adicinalText.setAlignment(Qt.AlignBottom)
-                    self._layout.addWidget(self._adicinalText)
+                    self._layout.addWidget(self._adicinalText, alignment=Qt.AlignCenter)
             except Exception as e:
                 logger.error("Error loading the image:", e)
 
@@ -293,6 +292,7 @@ class TableView(QTableWidget):
         self.objecManager = objectManager
         self.cellClicked.connect(self.setActualRowColumn)
         self.horizontalHeader().sectionClicked.connect(self.setActualColumn)
+        self.setSelectionBehavior(QTableWidget.SelectRows)
         self._oldzoom = ZOOM_SIZE
 
     def _createTable(self, tableName):
@@ -311,11 +311,11 @@ class TableView(QTableWidget):
         self._createHeader()
         self.columns = self.objecManager.getTable(self._tableName).getColumns()
         self._columnWithImages = self.getColumnWithImages()
+        self.tableWithAdditionalInfo = self.objecManager.getTableWithAdditionalInfo()
         self._rowHeight = DEFAULT_ROW_HEIGHT  # Default row height
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
-        self.propertiesTableDialog.uncheckColumns(8)
         self.propertiesTableDialog.hideColumns()
         self.setVerticalScrollBar(self.vScrollBar)
         self.setHorizontalScrollBar(self.hScrollBar)
@@ -371,7 +371,7 @@ class TableView(QTableWidget):
         self.vScrollBar.setValue(0)
         self._loadRows()
 
-        icon = QIcon(DOWN_ARROW) if self._orderAsc else QIcon(UP_ARROW)
+        icon = QIcon(getImage(DOWN_ARROW)) if self._orderAsc else QIcon(getImage(UP_ARROW))
         self.horizontalHeaderItem(column).setIcon(icon)
 
     def _createHeader(self):
@@ -426,17 +426,32 @@ class TableView(QTableWidget):
             for col in range(currenctColumnIndex, endColumn):
                 if self._columns[col].getRenderer().renderType() != Image:
                     item = self._columns[col].getRenderer().render(values[col])
+                    widget = CustomWidget(item)
                 else:
                     if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
                         item = self._columns[col].getRenderer().render(values[col])
+                        if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
+                            text = self.composeAdditionaInfo(rowValues)
+                            widget = CustomWidget(item, addText=True, text=text)
+                        else:
+                            widget = CustomWidget(item)
                     else:
                         item = values[col]
+                        widget = CustomWidget(item)
 
-                widget = CustomWidget(item)
                 self.setCellWidget(i + currentRowIndex, col, widget)
                 self.resizeColumnToContents(col)
                 self.setColumnWidth(col, self.columnWidth(col) + 5)
             self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
+
+    def composeAdditionaInfo(self, rowValues):
+        text = ''
+        columns = self.tableWithAdditionalInfo[1]
+        values = rowValues.getValues()
+        for i, column in enumerate(self.columns):
+            if column.getName() in columns:
+                text += column.getName() + '=' + str(values[i]) + ' '
+        return text
 
     def _loadRows(self):
         """Load the table rows"""
@@ -482,6 +497,7 @@ class GalleryView(QTableWidget):
         self.setGeometry(0, 0, 600, 600)
         self._oldzoom = ZOOM_SIZE
         self._rowHeight = ZOOM_SIZE
+        self._defineStyles()
 
     def setTableName(self, tableName):
         """Set the table name"""
@@ -514,7 +530,11 @@ class GalleryView(QTableWidget):
         self._columnsCount = self._calculateVisibleColumns()
         self._rowsCount = self._calculateVisibleRows()
         self._columnWithImages = self.getColumnWithImages()
-        self._renderer = self._columns[self._columnWithImages].getRenderer()
+        self.tableWithAdditionalInfo = self.objecManager.getTableWithAdditionalInfo()
+        if self._columnWithImages:
+            self._renderer = self._columns[self._columnWithImages].getRenderer()
+        else:
+            self._renderer = None
         self._rowsCount = int(self._tableSize / self._columnsCount) + 1
         self._tableName = tableName
         self.mainWidget = QWidget()
@@ -529,6 +549,11 @@ class GalleryView(QTableWidget):
         self.vScrollBar.valueChanged.connect(self._loadImages)
         if self._columnWithImages:
             self._rowHeight = self.getOldZoom()
+
+    def _defineStyles(self):
+        """Define the gallery styles. Create a border to the selected image"""
+        self.setStyleSheet(""" QTableWidget::item:selected { border: 1.5px dashed red; }"""
+                           """ QTableWidget::item:focus { border: 1.5px dashed blue;} """)
 
     def getRenderer(self):
         return self._renderer
@@ -580,13 +605,32 @@ class GalleryView(QTableWidget):
                         break
                     value = rowsValues[countImages]
                     item = renderer.render(value)
-                    self.setCellWidget(currentValue + row, col,
-                                       CustomWidget(item, imagePath=value))
+                    if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
+                        currentRow = rows[countImages]
+                        text = self.composeAdditionaInfo(currentRow)
+                        widget = CustomWidget(item, imagePath=value,
+                                              addText=True,
+                                              text=text)
+                    else:
+                        widget = CustomWidget(item, imagePath=value)
+
+                    self.setCellWidget(currentValue + row, col, widget)
                     self.setColumnWidth(col, self.getOldZoom() + 5)
                     countImages += 1
                 self.setRowHeight(currentValue + row, self.getOldZoom() + 5)
                 if seekFirstImage + countImages == self._tableSize:
                     break
+
+    def composeAdditionaInfo(self, rowValues):
+        text = ''
+        columnsWithInfo = self.tableWithAdditionalInfo[1]
+        values = rowValues.getValues()
+        table = self.objecManager.getTable(self._tableName)
+        columns = table.getColumns()
+        for i, column in enumerate(columns):
+            if column.getName() in columnsWithInfo:
+                text += column.getName() + '=' + str(values[i]) + ' '
+        return text
 
     def _loadImages(self):
         """Load the gallery images"""
@@ -616,12 +660,7 @@ class GalleryView(QTableWidget):
         self._loadImages()
 
     def setActualRowColumn(self, row, column):
-        """Create a border to the selected image"""
-        self.setStyleSheet("""
-                            QTableWidget::item:selected {
-                                border: 1.5px dashed red;
-                            }
-                        """)
+        """Update the current row and column"""
         self._actualRow = row
         self._actualColumn = column
 
@@ -658,6 +697,7 @@ class QTMetadataViewer(QMainWindow):
         self.tableAliases = self.objecManager.getTableAliases()
         self._pageSize = PAGE_SIZE
         self._triggeredResize = False
+        self._triggeredGotoItem = True
         self._rowsCount = self.objecManager.getTableRowCount(self.tableName)
         self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 800, 400)
@@ -673,6 +713,9 @@ class QTMetadataViewer(QMainWindow):
         self.table._createTable(self.tableName)
         self.table.cellClicked.connect(self._tableCellClicked)
         self.table.verticalHeader().sectionClicked.connect(self.onVerticalHeaderClicked)
+        self.table.horizontalHeader().setContextMenuPolicy(3)
+        self.table.horizontalHeader().customContextMenuRequested.connect(self.showContextMenu)
+
         self._columnWithImages = self.table.getColumnWithImages()
 
         self._createActions()
@@ -690,6 +733,34 @@ class QTMetadataViewer(QMainWindow):
             self._loadGalleryView()
         else:
             self._loadTableView()
+
+    def showContextMenu(self, pos):
+        """Show the contextual menu when a column is selected by right-click"""
+        # Obtaining the column
+        col = self.table.horizontalHeader().logicalIndexAt(pos.x())
+        self.table.setActualColumn(col)
+        # Creating the contextual menu
+        contextMenu = QMenu(self)
+
+        # Hide column action
+        hideColumnAction = QAction(HIDE_COLUMN, self)
+        hideColumnAction.setIcon(QIcon(getImage(HIDE)))
+        hideColumnAction.triggered.connect(lambda: self.hideColumn(col))
+        contextMenu.addAction(hideColumnAction)
+
+        # Adding toolbar actions
+        contextMenu.addAction(self.sortUp)
+        contextMenu.addAction(self.sortDown)
+        contextMenu.addAction(self.reduceDecimals)
+        contextMenu.addAction(self.increaseDecimals)
+
+        # Showing the menu
+        contextMenu.exec_(self.table.mapToGlobal(pos))
+
+    def hideColumn(self, col):
+        """ Hide the table column"""
+        self.table.propertiesTableDialog.hideColumn(col)
+        self.table._fillTable()
 
     def setDarkTheme(self):
         """Dark theme"""
@@ -717,7 +788,16 @@ class QTMetadataViewer(QMainWindow):
         """Create the status bar"""
         self.statusbar = QStatusBar()
         self.setStatusBar(self.statusbar)
-        self.statusbar.setFixedHeight(DEFAULT_ROW_HEIGHT)
+        self.statusbar.setFixedHeight(DEFAULT_STATUS_BAR_HEIGHT)
+        self._updateStatusBar()
+
+    def _updateStatusBar(self):
+        row = self.gallery.getActualRow() if self._galleryView else self.table.getActualRow()
+        column = self.gallery.getActualColumn() if self._galleryView else self.table.getActualColumn()
+        if self._galleryView:
+            self.statusbar.showMessage(f"Row: {row + 1}, Column: {column + 1}")
+        else:
+            self.statusbar.showMessage(f"Row: {row + 1}, Column: {self.table.getColumns()[column].getName()}")
 
     def _createActions(self):
         """Create a set of GUI actions"""
@@ -725,85 +805,50 @@ class QTMetadataViewer(QMainWindow):
         self.newAction = QAction(self)
         self.newAction.setText("&Open...")
         self.newAction.setShortcut(QKeySequence("Ctrl+O"))
-        self.newAction.setIcon(QIcon(FOLDER))
+        self.newAction.setIcon(QIcon(getImage(FOLDER)))
 
         self.exitAction = QAction(self)
         self.exitAction.setText("E&xit")
         self.exitAction.setShortcut(QKeySequence("Ctrl+X"))
-        self.exitAction.setIcon(QIcon(EXIT))
+        self.exitAction.setIcon(QIcon(getImage(EXIT)))
         self.exitAction.triggered.connect(sys.exit)
 
         # Display actions
         self.table.propertiesTableAction = QAction(COLUMNS, self)
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
-        self.table.propertiesTableAction.setIcon(QIcon(PREFERENCES))
+        self.table.propertiesTableAction.setIcon(QIcon(getImage(PREFERENCES)))
         if self._galleryView:
             self.table.propertiesTableAction.setEnabled(False)
 
         # Toolbar action
         self.gotoTableAction = QAction(GO_TO_TABLE_VIEW, self)
-        self.gotoTableAction.setIcon(QIcon(TABLE_VIEW))
+        self.gotoTableAction.setIcon(QIcon(getImage(TABLE_VIEW)))
         self.gotoTableAction.setEnabled(False)
         self.gotoTableAction.triggered.connect(self._loadTableView)
 
         self.gotoGalleryAction = QAction(GO_TO_GALLERY_VIEW, self)
-        self.gotoGalleryAction.setIcon(QIcon(GALLERY_VIEW))
+        self.gotoGalleryAction.setIcon(QIcon(getImage(GALLERY_VIEW)))
         self.gotoGalleryAction.triggered.connect(self._loadGalleryView)
 
         # Columns  Toolbar action
         self.reduceDecimals = QAction(REDUCE_DECIMALS_TEXT, self)
-        self.reduceDecimals.setIcon(QIcon(REDUCE_DECIMALS))
+        self.reduceDecimals.setIcon(QIcon(getImage(REDUCE_DECIMALS)))
         self.reduceDecimals.setEnabled(False)
         self.reduceDecimals.triggered.connect(lambda:  self._redIncDecimals(True))
 
         self.increaseDecimals = QAction(INCREASE_DECIMALS_TEXT, self)
-        self.increaseDecimals.setIcon(QIcon(INCREASE_DECIMALS))
+        self.increaseDecimals.setIcon(QIcon(getImage(INCREASE_DECIMALS)))
         self.increaseDecimals.setEnabled(False)
         self.increaseDecimals.triggered.connect(lambda: self._redIncDecimals(False))
 
         self.sortUp = QAction(SORT_ASC, self)
-        self.sortUp.setIcon(QIcon(DOWN_ARROW))
+        self.sortUp.setIcon(QIcon(getImage(DOWN_ARROW)))
         self.sortUp.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), True))
 
         self.sortDown = QAction(SORT_DESC, self)
-        self.sortDown.setIcon(QIcon(UP_ARROW))
+        self.sortDown.setIcon(QIcon(getImage(UP_ARROW)))
         self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
-
-    def _loadTableView(self):
-        """Load the data in a table mode"""
-        if self._galleryView:
-            widget = self.takeCentralWidget()
-            if widget:
-                self.gallery = widget
-        self._galleryView = False
-        self._tableView = True
-        self.table.setActualRowColumn(0, 0)
-        galleryEnable = True if self._columnWithImages else False
-        self.gotoGalleryAction.setEnabled(galleryEnable)
-        self.gotoTableAction.setEnabled(False)
-        self.setCentralWidget(self.table)
-        self.bockTableName.setEnabled(True)
-        self.table._fillTable()
-        self.enableTableOptions(self.table.getActualRow(),
-                                self.table.getActualColumn())
-        self._gotoItem(self.goToItem.value())
-
-    def _loadGalleryView(self):
-        """Load the data in a gallary mode"""
-        if self._tableView:
-            widget = self.takeCentralWidget()
-            if widget:
-                self.table = widget
-
-        self._galleryView = True
-        self._tableView = False
-        self.gotoTableAction.setEnabled(True)
-        self.gotoGalleryAction.setEnabled(False)
-        self.setCentralWidget(self.gallery)
-        self.enableGalleryOption()
-        self.gallery._update()
-        self._gotoItem(self.goToItem.value())
 
     def _createMenuBar(self):
         """ Create the menu """
@@ -842,7 +887,7 @@ class QTMetadataViewer(QMainWindow):
         self.blockLabelIcon = QLabel('\t')
         toolBar.addWidget(self.blockLabelIcon)
         self.blockLabel = QLabel(BLOCKS)
-        icon = QIcon(TABLE_BLOCKS)
+        icon = QIcon(getImage(TABLE_BLOCKS))
         self.blockLabel.setPixmap(icon.pixmap(16, 16))
         self.blockLabel.setToolTip(BLOCKS)
         toolBar.addWidget(self.blockLabel)
@@ -851,7 +896,7 @@ class QTMetadataViewer(QMainWindow):
         for tableName in self.tableNames:
             self.bockTableName.addItem(self.tableAliases[tableName])
         for i in range(len(self.tableNames)):
-            self.bockTableName.setItemIcon(i, QIcon(TABLE))
+            self.bockTableName.setItemIcon(i, QIcon(getImage(TABLE)))
             # Connect signals to the methods.
         self.bockTableName.activated.connect(self.selectTable)
         self.bockTableName.setToolTip(BLOCKS)
@@ -860,8 +905,8 @@ class QTMetadataViewer(QMainWindow):
         # Columns tool bar
         columnsToolBar2 = self.addToolBar("")
 
-        self.zoomLabel = QLabel(ZOOM)
-        icon = QIcon(ZOOM_PLUS)
+        self.zoomLabel = QLabel(getImage(ZOOM))
+        icon = QIcon(getImage(ZOOM_PLUS))
         self.zoomLabel.setPixmap(icon.pixmap(20, 20))
         self.zoomLabel.setToolTip(ZOOM)
         self.zoomLabel.setEnabled(False)
@@ -877,19 +922,19 @@ class QTMetadataViewer(QMainWindow):
         self.zoom.valueChanged.connect(self._renderImage)
 
         self.gotoItemLabel = QLabel(GO_TO_ITEM)
-        icon = QIcon(GOTO_ITEM)
+        icon = QIcon(getImage(GOTO_ITEM))
         self.gotoItemLabel.setPixmap(icon.pixmap(20, 20))
         self.gotoItemLabel.setToolTip(GO_TO_ITEM)
         self.gotoItemLabel.setEnabled(True)
         self.goToItem = QSpinBox()
-        self.goToItem.setMaximum(8000000)
+        self.goToItem.setMaximum(MAX_ITEMS_INDEX)
         self.goToItem.setMinimum(1)
         self.goToItem.setValue(1)
         self.goToItem.setToolTip(GO_TO_ITEM)
         self.goToItem.setFixedWidth(70)
         self.goToItem.setAlignment(Qt.AlignRight)
         self.goToItem.setEnabled(True)
-        self.goToItem.valueChanged.connect(self._gotoItem)
+        self.goToItem.valueChanged.connect(self._gotoCurrentItem)
 
         columnsToolBar2.addWidget(self.zoomLabel)
         columnsToolBar2.addWidget(self.zoom)
@@ -901,70 +946,6 @@ class QTMetadataViewer(QMainWindow):
         columnsToolBar2.addSeparator()
         columnsToolBar2.addWidget(self.gotoItemLabel)
         columnsToolBar2.addWidget(self.goToItem)
-
-    def toggleColumn(self, table_view, column):
-        """Hide a given column"""
-        self.table.setColumnHidden(column,
-                                   not table_view.isColumnHidden(column))
-
-    def selectTable(self):
-        """Method that control the tables when are selected in the tables
-           combobox """
-        tableAlias = self.bockTableName.currentText()
-        tableName = tableAlias
-        for table, alias in self.tableAliases.items():
-            if alias == tableAlias:
-                tableName = table
-                break
-        if tableName != self.table.getTableName():
-            self.goToItem.setValue(1)
-            self.tableName = tableName
-            self.zoom.setValue(ZOOM_SIZE)
-            self.table._createTable(tableName)
-            self.gallery._createGallery(tableName)
-
-            if self._galleryView and self.table.getColumnWithImages():
-                self.gallery.setActualRowColumn(0, 0)
-                self._loadGalleryView()
-            else:
-                self.table.setActualRowColumn(0, 0)
-                self._loadTableView()
-                galleryEnable = True if self.gallery.getColumnWithImages() else False
-                if galleryEnable:
-                    self.gotoGalleryAction.setEnabled(True)
-                else:
-                    self.gotoGalleryAction.setEnabled(False)
-
-            self._rowsCount = self.objecManager.getTableRowCount(tableName)
-            self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
-
-    def _tableCellClicked(self, row, column):
-        """Event that control when a table cell is selected"""
-        self.goToItem.setValue(row + 1)
-        self.enableTableOptions(row, column)
-
-    def onVerticalHeaderClicked(self, index):
-        """Event that control when the vertical header is clicked"""
-        self.goToItem.setValue(index + 1)
-
-    def resizeEvent(self, event):
-        """Control the resize event"""
-        if self._triggeredResize:
-            if self._galleryView:
-                self.gallery._update()
-                self._gotoItem(self.goToItem.value())
-            else:
-                self.table._loadRows()
-                self._gotoItem(self.goToItem.value())
-
-        self._triggeredResize = True
-
-    def showImage(self, row, column):
-        """Plot a selected image """
-        item = self.gallery.cellWidget(row, column)
-        if item:
-            viewer = ImageViewer(item._label.pixmap())
-            viewer.exec_()
 
     def enableGalleryOption(self):
         """Preference of gallery mode"""
@@ -1008,6 +989,100 @@ class QTMetadataViewer(QMainWindow):
                 self.zoom.setEnabled(False)
                 self.zoomLabel.setEnabled(False)
 
+    def toggleColumn(self, table_view, column):
+        """Hide a given column"""
+        self.table.setColumnHidden(column,
+                                   not table_view.isColumnHidden(column))
+
+    def _loadTableView(self):
+        """Load the data in a table mode"""
+        if self._galleryView:
+            gallery = self.takeCentralWidget()
+            if gallery:
+                self.gallery = gallery
+        self._galleryView = False
+        self._tableView = True
+        galleryEnable = True if self._columnWithImages else False
+        self.gotoGalleryAction.setEnabled(galleryEnable)
+        self.gotoTableAction.setEnabled(False)
+        self.setCentralWidget(self.table)
+        self.bockTableName.setEnabled(True)
+        self.table._fillTable()
+        self.table.setActualRowColumn(self.goToItem.value(),
+                                      self.table.getActualColumn())
+        self.enableTableOptions(self.table.getActualRow(),
+                                self.table.getActualColumn())
+        self._gotoItem(self.goToItem.value())
+
+    def _loadGalleryView(self):
+        """Load the data in the gallary mode"""
+        if self._tableView:
+            table = self.takeCentralWidget()
+            if table:
+                self.table = table
+
+        self._galleryView = True
+        self._tableView = False
+        self.gotoTableAction.setEnabled(True)
+        self.gotoGalleryAction.setEnabled(False)
+        self.setCentralWidget(self.gallery)
+        self.enableGalleryOption()
+        self.gallery._update()
+        self._gotoItem(self.goToItem.value())
+
+    def selectTable(self):
+        """Method that control the tables when are selected in the tables
+           combobox """
+        tableAlias = self.bockTableName.currentText()
+        tableName = tableAlias
+        for table, alias in self.tableAliases.items():
+            if alias == tableAlias:
+                tableName = table
+                break
+        if tableName != self.table.getTableName():
+            self.goToItem.setValue(1)
+            self.tableName = tableName
+            self.zoom.setValue(ZOOM_SIZE)
+            self.table._createTable(tableName)
+            self.gallery._createGallery(tableName)
+
+            if self._galleryView and self.table.getColumnWithImages():
+                self.gallery.setActualRowColumn(0, 0)
+                self._loadGalleryView()
+            else:
+                self.table.setActualRowColumn(0, 0)
+                self._loadTableView()
+                galleryEnable = True if self.gallery.getColumnWithImages() else False
+                if galleryEnable:
+                    self.gotoGalleryAction.setEnabled(True)
+                else:
+                    self.gotoGalleryAction.setEnabled(False)
+
+            self._rowsCount = self.objecManager.getTableRowCount(tableName)
+            self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
+
+    def onVerticalHeaderClicked(self, index):
+        """Event that control when the vertical header is clicked"""
+        self.goToItem.setValue(index + 1)
+
+    def resizeEvent(self, event):
+        """Control the resize event"""
+        if self._triggeredResize:
+            if self._galleryView:
+                self.gallery._update()
+                self._gotoItem(self.goToItem.value(), moveScroll=False)
+            else:
+                self.table._loadRows()
+
+        self._triggeredResize = True
+
+    def showImage(self, row, column):
+        """Plot a selected image """
+        item = self.gallery.cellWidget(row, column)
+        if item:
+            viewer = ImageViewer(item._label.pixmap())
+            viewer.exec_()
+
     def _renderImage(self):
         """Method tha control the images renderers"""
         zoom = self.zoom.value()
@@ -1023,30 +1098,53 @@ class QTMetadataViewer(QMainWindow):
             self.gallery.getRenderer().setSize(zoom)
             self.gallery.setOldZoom(zoom)
             self.gallery._update()
-        self._gotoItem(self.goToItem.value())
+            self._gotoItem(self.goToItem.value())
+
+    def _tableCellClicked(self, row, column):
+        """Event that control when a table cell is selected"""
+        self.enableTableOptions(row, column)
+        self._triggeredGotoItem = False
+        self.goToItem.setValue(row + 1)
+        self._triggeredGotoItem = True
+        self.table.setActualRowColumn(row + 1, self.table.getActualColumn())
+        self._updateStatusBar()
 
     def _galleryCellClicked(self, row, column):
         """Event that control the gallery when click in a image"""
         columnsCount = self.gallery.getColumnsCount()
         index = row * columnsCount + column + 1
+        self._triggeredGotoItem = False
         self.goToItem.setValue(index)
+        self._triggeredGotoItem = True
+        self.gallery.setActualRowColumn(row, self.gallery.getActualColumn())
+        self._updateStatusBar()
 
-    def _gotoItem(self, itemIndex):
+    def _gotoCurrentItem(self, itemIndex):
+        if self._triggeredGotoItem:
+            self._gotoItem(itemIndex)
+
+    def _gotoItem(self, itemIndex, moveScroll=True):
         """Event that allows locating an item given the index  """
         if itemIndex > self._rowsCount:
             itemIndex = self._rowsCount
             self.goToItem.setValue(itemIndex)
         itemIndex -= 1
 
-        self.table.selectRow(itemIndex)
+        if self._galleryView:
+            columnsCount = self.gallery.getColumnsCount()
+            col = itemIndex % columnsCount
+            row = itemIndex // columnsCount
+            if moveScroll:
+                self.gallery.vScrollBar.setValue(row)
+            self.gallery.setCurrentCell(row, col)
+            self.gallery.setActualRowColumn(row, col)
 
-        columnsCount = self.gallery.getColumnsCount()
-        col = itemIndex % columnsCount
-        row = itemIndex // columnsCount
-        model = self.gallery.model()
-        index = model.index(row, col)
-        self.gallery.setCurrentCell(index.row(), index.column())
-        self.gallery.setActualRowColumn(row, col)
+        else:
+            self.table.setActualRowColumn(itemIndex,
+                                          self.table.getActualColumn())
+            if moveScroll:
+                self.table.vScrollBar.setValue(itemIndex)
+        self._updateStatusBar()
 
     def _redIncDecimals(self, flag):
         """Method that control the increments or reduce decimals when a float

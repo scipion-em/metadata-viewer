@@ -27,19 +27,20 @@
 
 #  -------ICONS----------
 
-DOWN_ARROW = 'gui/resources/down-arrow.png'
-UP_ARROW = 'gui/resources/up-arrow.png'
-FOLDER = 'gui/resources/folder.png'
-EXIT = 'gui/resources/exit.png'
-TABLE = 'gui/resources/table.png'
-TABLE_VIEW = 'gui/resources/table-view.png'
-GALLERY_VIEW = 'gui/resources/gallery.png'
-REDUCE_DECIMALS = 'gui/resources/reducedecimals.png'
-INCREASE_DECIMALS = 'gui/resources/increasedecimals.png'
-TABLE_BLOCKS = 'gui/resources/sections.png'
-PREFERENCES = 'gui/resources/preferences.png'
-ZOOM_PLUS = 'gui/resources/zoom.png'
-GOTO_ITEM = 'gui/resources/goto_item.png'
+DOWN_ARROW = 'down-arrow.png'
+UP_ARROW = 'up-arrow.png'
+FOLDER = 'folder.png'
+EXIT = 'exit.png'
+TABLE = 'table.png'
+TABLE_VIEW = 'table-view.png'
+GALLERY_VIEW = 'gallery.png'
+REDUCE_DECIMALS = 'reducedecimals.png'
+INCREASE_DECIMALS = 'increasedecimals.png'
+TABLE_BLOCKS = 'sections.png'
+PREFERENCES = 'preferences.png'
+ZOOM_PLUS = 'zoom.png'
+GOTO_ITEM = 'goto_item.png'
+HIDE = 'hide.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -58,6 +59,8 @@ SORT_ASC = 'Sort ascending'
 SORT_DESC = 'Sort descending'
 GO_TO_ITEM = 'Go to item'
 
+HIDE_COLUMN = 'Hide column'
+
 
 # --------------TOOLBAR LABELS & VARIABLES----------------
 
@@ -68,6 +71,8 @@ ZOOM = 'Size in pixels'
 ZOOM_SIZE = 150
 PAGE_SIZE = 50
 DEFAULT_ROW_HEIGHT = 15
+DEFAULT_STATUS_BAR_HEIGHT = 30
+MAX_ITEMS_INDEX = 8000000
 
 
 
