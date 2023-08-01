@@ -106,11 +106,22 @@ class BoolRenderer(IRenderer):
 
 class MatrixRender(IRenderer):
 
+    def __init__(self, decimalNumber: int = 2):
+        self._decimalNumber = decimalNumber
+
     def _render(self, value):
-        return eval(value)
+        matrix = np.array(eval(value))
+        np.set_printoptions(precision=self._decimalNumber, suppress=True)
+        return np.around(matrix, decimals=self._decimalNumber)
+
+    def setDecimalNumber(self, decimalNumber):
+        self._decimalNumber = decimalNumber
+
+    def getDecimalsNumber(self):
+        return self._decimalNumber
 
     def renderType(self):
-        return list
+        return np.ndarray
 
 
 class ImageReader:

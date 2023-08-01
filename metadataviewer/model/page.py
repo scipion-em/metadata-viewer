@@ -264,9 +264,16 @@ def _guessRender(strValue):
                 renderer._render(strValue)
                 return renderer
             except Exception:
-                logger.debug("Image conversion failed...")
-                logger.debug("Trying to convert the value to a string...")
-                return StrRenderer()
+                try:
+                    logger.debug("Image conversion failed...")
+                    logger.debug("Trying to convert the value to a Matrix...")
+                    renderer = MatrixRender()
+                    renderer._render(strValue)
+                    return renderer
+                except Exception:
+                    logger.debug("Image conversion failed...")
+                    logger.debug("Trying to convert the value to a string...")
+                    return StrRenderer()
 
 
 def _guessType(strValue):
