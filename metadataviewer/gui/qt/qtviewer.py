@@ -228,9 +228,10 @@ class CustomScrollBar(QScrollBar):
 
 class CustomWidget(QWidget):
     """Class to  custom the table cell widget"""
-    def __init__(self, data, imagePath='', addText=False, text=''):
+    def __init__(self, data, id, imagePath='', addText=False, text=''):
         super().__init__()
         self._data = data
+        self._id = id
         self._imagePath = imagePath
         self._layout = QVBoxLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
@@ -289,6 +290,9 @@ class CustomWidget(QWidget):
     def getImagePath(self):
         return self._imagePath
 
+    def getId(self):
+        return self._id
+
 
 class TableView(QTableWidget):
     """Class to represent the metadata in table mode"""
@@ -336,7 +340,7 @@ class TableView(QTableWidget):
         self.setHorizontalScrollBar(self.hScrollBar)
         self.vScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.hScrollBar.valueChanged.connect(lambda: self._loadRows())
-        self.setCurrentCell(0, 0)
+        # self.setCurrentCell(0, 0)
 
     def getTable(self):
         """Return the current table"""
@@ -453,18 +457,18 @@ class TableView(QTableWidget):
             for col in range(currenctColumnIndex, endColumn):
                 if self._columns[col].getRenderer().renderType() != Image:
                     item = self._columns[col].getRenderer().render(values[col])
-                    widget = CustomWidget(item)
+                    widget = CustomWidget(item, row.getId())
                 else:
                     if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
                         item = self._columns[col].getRenderer().render(values[col])
                         if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                             text = self.composeAdditionaInfo(row)
-                            widget = CustomWidget(item, addText=True, text=text)
+                            widget = CustomWidget(item, row.getId(), addText=True, text=text)
                         else:
-                            widget = CustomWidget(item)
+                            widget = CustomWidget(item, row.getId())
                     else:
                         item = values[col]
-                        widget = CustomWidget(item)
+                        widget = CustomWidget(item, row.getId())
 
                 self.setCellWidget(i + currentRowIndex, col, widget)
                 self.resizeColumnToContents(col)
@@ -520,11 +524,12 @@ class GalleryView(QTableWidget):
         self.objectManager = objectManager
         self.objectManager.selectDAO()
         self.tableNames = self.objectManager.getTableNames()
-        table = self.objectManager.getTable(self.tableNames[0])
-        self._tableName = table.getName()
-        self._tableAlias = table.getAlias()
+        self._table = self.objectManager.getTable(self.tableNames[0])
+        self._tableName = self._table.getName()
+        self._tableAlias = self._table.getAlias()
         self._actualRow = 0
         self._actualColumn = 0
+        self._lastSelectedCell = 0
         self.cellClicked.connect(self.setActualRowColumn)
         self.setGeometry(0, 0, 600, 600)
         self._oldzoom = ZOOM_SIZE
@@ -553,12 +558,16 @@ class GalleryView(QTableWidget):
     def getRowsCount(self):
         return self._rowsCount
 
+    def getLastSelectedCell(self):
+        return self._lastSelectedCell
+
     def _createGallery(self, tableName):
         """Creating the gallery for a given table"""
         self.setColumnCount(0)
         self._tableName = tableName
+        self._table = self.objectManager.getTable(self._tableName)
         self._tableSize = self.objectManager.getTableRowCount(self._tableName)
-        self._columns = self.objectManager.getTable(self._tableName).getColumns()
+        self._columns = self._table.getColumns()
         self._columnsCount = self._calculateVisibleColumns()
         self._rowsCount = self._calculateVisibleRows()
         self._columnWithImages = self.getColumnWithImages()
@@ -568,7 +577,6 @@ class GalleryView(QTableWidget):
         else:
             self._renderer = None
         self._rowsCount = int(self._tableSize / self._columnsCount) + 1
-        self._tableName = tableName
         self.mainWidget = QWidget()
         self.mainLayout = QVBoxLayout(self.mainWidget)
         self.verticalHeader().setVisible(True)
@@ -586,6 +594,9 @@ class GalleryView(QTableWidget):
         """Define the gallery styles. Create a border to the selected image"""
         self.setStyleSheet(""" QTableWidget::item:selected { border: 1.5px dashed red; }"""
                            """ QTableWidget::item:focus { border: 1.5px dashed blue;} """)
+
+    def getTable(self):
+        return self._table
 
     def getRenderer(self):
         return self._renderer
@@ -637,16 +648,19 @@ class GalleryView(QTableWidget):
                         break
                     value = rowsValues[countImages]
                     item = renderer.render(value)
+                    currentRow = rows[countImages]
                     if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
-                        currentRow = rows[countImages]
                         text = self.composeAdditionaInfo(currentRow)
-                        widget = CustomWidget(item, imagePath=value,
+                        widget = CustomWidget(item, currentRow.getId(), imagePath=value,
                                               addText=True,
                                               text=text)
                     else:
-                        widget = CustomWidget(item, imagePath=value)
+                        widget = CustomWidget(item, currentRow.getId(), imagePath=value)
 
                     self.setCellWidget(currentValue + row, col, widget)
+                    if rows[countImages].getId() in self.getTable().getSelection().getSelection():
+                        self.setRangeSelected(QTableWidgetSelectionRange(currentValue + row, col, currentValue + row, col),  True)
+
                     self.setColumnWidth(col, self.getOldZoom() + 5)
                     countImages += 1
                 self.setRowHeight(currentValue + row, self.getOldZoom() + 5)
@@ -693,6 +707,10 @@ class GalleryView(QTableWidget):
 
     def setActualRowColumn(self, row, column):
         """Update the current row and column"""
+        columnsCount = len(self.table.getColumns())
+        index = self._actualRow * columnsCount + self._actualColumn + 1
+        self._lastSelectedCell = index
+
         self._actualRow = row
         self._actualColumn = column
 
@@ -1084,7 +1102,6 @@ class QTMetadataViewer(QMainWindow):
         if tableName != self.table.getTableName():
             self.goToItem.setValue(1)
             self.tableName = tableName
-            self._table = self.objectManager.getTable(tableName)
             self.zoom.setValue(ZOOM_SIZE)
             self.table._createTable(tableName)
             self.gallery._createGallery(tableName)
@@ -1171,8 +1188,6 @@ class QTMetadataViewer(QMainWindow):
             self.table.getTable().getSelection().addRowSelected(rowId)
         elif modifiers == Qt.ShiftModifier:  # shift+click
             self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
-
-
         # self.setRangeSelected(QTableWidgetSelectionRange(0, 0, 4, self.columnCount() -1), True) # To select a range
 
         self.enableTableOptions(row, column)
@@ -1186,6 +1201,17 @@ class QTMetadataViewer(QMainWindow):
         """Event that control the gallery when click in a image"""
         columnsCount = self.gallery.getColumnsCount()
         index = row * columnsCount + column + 1
+
+        modifiers = QApplication.keyboardModifiers()
+        rowId = self.gallery.cellWidget(row, column).getId()
+        if modifiers == Qt.NoModifier:  # Simple click
+            self.gallery.getTable().getSelection().clear()
+            self.gallery.getTable().getSelection().addRowSelected(rowId)
+        elif modifiers == Qt.ControlModifier:  # ctrl+click
+            self.table.getTable().getSelection().addRowSelected(rowId)
+        elif modifiers == Qt.ShiftModifier:  # shift+click
+            self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
+
         self._triggeredGotoItem = False
         self.goToItem.setValue(index)
         self._triggeredGotoItem = True
@@ -1209,7 +1235,7 @@ class QTMetadataViewer(QMainWindow):
             row = itemIndex // columnsCount
             if moveScroll:
                 self.gallery.vScrollBar.setValue(row)
-            self.gallery.setCurrentCell(row, col)
+            # self.gallery.setCurrentCell(row, col)
             self.gallery.setActualRowColumn(row, col)
 
         else:
