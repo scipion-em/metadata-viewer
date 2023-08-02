@@ -150,6 +150,9 @@ class ObjectManager:
                 break
         return rows
 
+    def getSelectedRangeRowsIds(self, tableName, top, bottom, column, reverse=True):
+        return self._dao.getSelectedRangeRowsIds(tableName, top, bottom, column, reverse)
+
     def getTableNames(self):
         """Return the tables names"""
         return self._dao.getTableNames()

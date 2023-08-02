@@ -192,9 +192,13 @@ class StarFile(IDAO):
         """ Sort the table in place using the provided column.
             :param column is a number, it is the index of one column. """
         _columType = self._labelsTypes[tableName][column]
-        orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
+        orderList = sorted(self._tableData[tableName],
+                           key=lambda x: _columType(x[column]),
                            reverse=not sortAsc)
         self._tableData[tableName] = orderList
+
+    def getSelectedRangeRowsIds(self, tableName, top, bottom, column,  reverse=True):
+        pass
 
     def getTableWithAdditionalInfo(self):
         """Return a tuple with the table that need to show additional info and

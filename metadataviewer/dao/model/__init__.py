@@ -68,3 +68,8 @@ class IDAO:
     @abstractmethod
     def getTableWithAdditionalInfo(self):
         pass
+
+    @abstractmethod
+    def getSelectedRangeRowsIds(self, tableName, top, bottom, column, reverse=True) -> list:
+        pass
+

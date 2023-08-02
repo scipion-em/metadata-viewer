@@ -41,6 +41,8 @@ PREFERENCES = 'preferences.png'
 ZOOM_PLUS = 'zoom.png'
 GOTO_ITEM = 'goto_item.png'
 HIDE = 'hide.png'
+CLOSE = 'fa-close.png'
+ERROR = 'error.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -73,6 +75,10 @@ PAGE_SIZE = 50
 DEFAULT_ROW_HEIGHT = 15
 DEFAULT_STATUS_BAR_HEIGHT = 30
 MAX_ITEMS_INDEX = 8000000
+
+# -------------------- STATUS BAR LABELS ------------------
+
+CLOSE_BUTTON_TEXT = 'Close'
 
 
 
