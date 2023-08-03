@@ -70,6 +70,6 @@ class IDAO:
         pass
 
     @abstractmethod
-    def getSelectedRangeRowsIds(self, tableName, top, bottom, column, reverse=True) -> list:
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True) -> list:
         pass
 

@@ -202,11 +202,16 @@ class SqliteFile(IDAO):
     def getTableRowCount(self, tableName):
         return self._tableCount[tableName]
 
-    def getSelectedRangeRowsIds(self, tableName, top, bottom, column,  reverse=True):
-        """Return a list with """
-        logger.debug("Reading the table %s and selected a range of rows %d - %d" % (tableName, top, bottom))
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column,  reverse=True):
+        """Return a range of rows starting at 'startRow' an amount
+           of 'numberOfRows' """
+
+        logger.debug("Reading the table %s and selected a range of rows %d - %d" % (tableName,startRow, numberOfRows + 1))
         mode = 'ASC' if reverse else 'DESC'
-        query = "SELECT id FROM(SELECT id FROM %s ORDER BY %s %s) AS SORTEDCOLUMN LIMIT %d , %d" % (tableName, column, mode, top-1, bottom)
+        col = self._getColumnMap(tableName, column)
+        if col == None:
+            col = column
+        query = "SELECT id FROM %s ORDER BY %s %s LIMIT %d , %d" % (tableName, col, mode, startRow - 1, numberOfRows + 1)
         rowsList = self._con.execute(query).fetchall()
         rowsIds = [row['id'] for row in rowsList]
         return rowsIds

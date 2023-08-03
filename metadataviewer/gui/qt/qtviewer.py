@@ -765,7 +765,9 @@ class QTMetadataViewer(QMainWindow):
         self.table.cellClicked.connect(self._tableCellClicked)
         self.table.verticalHeader().sectionClicked.connect(self.onVerticalHeaderClicked)
         self.table.horizontalHeader().setContextMenuPolicy(3)
-        self.table.horizontalHeader().customContextMenuRequested.connect(self.showContextMenu)
+        self.table.horizontalHeader().customContextMenuRequested.connect(self.showHorizontalContextMenu)
+        self.table.verticalHeader().setContextMenuPolicy(3)
+        self.table.verticalHeader().customContextMenuRequested.connect(self.showVerticalContextMenu)
 
         self._columnWithImages = self.table.getColumnWithImages()
 
@@ -785,7 +787,7 @@ class QTMetadataViewer(QMainWindow):
         else:
             self._loadTableView()
 
-    def showContextMenu(self, pos):
+    def showHorizontalContextMenu(self, pos):
         """Show the contextual menu when a column is selected by right-click"""
         # Obtaining the column
         col = self.table.horizontalHeader().logicalIndexAt(pos.x())
@@ -804,6 +806,41 @@ class QTMetadataViewer(QMainWindow):
         contextMenu.addAction(self.sortDown)
         contextMenu.addAction(self.reduceDecimals)
         contextMenu.addAction(self.increaseDecimals)
+
+        # Showing the menu
+        contextMenu.exec_(self.table.mapToGlobal(pos))
+
+    def showVerticalContextMenu(self, pos):
+        """Show the contextual menu when a column is selected by right-click"""
+        # Obtaining the column
+        col = self.table.horizontalHeader().logicalIndexAt(pos.x())
+        self.table.setActualColumn(col)
+        # Creating the contextual menu
+        contextMenu = QMenu(self)
+
+        # SubMenu Select
+        selectSubMenu = QMenu(self)
+        selectSubMenu.setTitle(SELECT)
+
+        # Select all action
+        selectAllAction = QAction(SELECT_ALL, self)
+        selectAllAction.setIcon(QIcon(getImage(TABLE)))
+        # selectAllAction.triggered.connect(lambda: self.selectAll())
+        # Select from here
+        selectFromHereAction = QAction(SELECT_FROM_HERE, self)
+        selectFromHereAction.setIcon(QIcon(getImage(FROM_HERE)))
+        # Select to here
+        selectToHereAction = QAction(SELECT_TO_HERE, self)
+        selectToHereAction.setIcon(QIcon(getImage(TO_HERE)))
+
+
+        selectSubMenu.addAction(selectAllAction)
+        selectSubMenu.addAction(selectFromHereAction)
+        selectSubMenu.addAction(selectToHereAction)
+
+        contextMenu.addMenu(selectSubMenu)
+
+
 
         # Showing the menu
         contextMenu.exec_(self.table.mapToGlobal(pos))
@@ -1161,33 +1198,35 @@ class QTMetadataViewer(QMainWindow):
             self._gotoItem(self.goToItem.value())
 
     def selectedRange(self, top, bottom):
-        topAux = top
         if top > bottom:
+            topAux = top
             top = bottom
+            startRow = top
+            numberOfRows = abs(top - topAux)
         else:
-            topAux = bottom
+            startRow = top
+            numberOfRows = bottom - top
 
-        bottom = abs(top - topAux + 1)
         selectedRange = self.objectManager.getSelectedRangeRowsIds(self.table.getTableName(),
-                                                                   top - 1, bottom + 1,
+                                                                   startRow, numberOfRows,
                                                                    self.table.getColumns()[self.table.getSortedColumn()].getName(),
                                                                    self.table._orderAsc)
         for i in selectedRange:
-            self.table.getTable().getSelection().addRowSelected(i)
+            self.table.getTable().getSelection().addRowSelected(i, remove=False)
 
     def _tableCellClicked(self, row, column):
         """Event that control when a table cell is selected.
            Here the selection is handled"""
 
         modifiers = QApplication.keyboardModifiers()
-        rowId = self.table.cellWidget(row, 0).getData()
+        rowId = self.table.cellWidget(row, 0).getId()
         if modifiers == Qt.NoModifier:  # Simple click
             self.table.getTable().getSelection().clear()
             self.table.getTable().getSelection().addRowSelected(rowId)
         elif modifiers == Qt.ControlModifier:  # ctrl+click
             self.table.getTable().getSelection().addRowSelected(rowId)
         elif modifiers == Qt.ShiftModifier:  # shift+click
-            self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
+            self.selectedRange(self.table.getLastSelectedRow(), row + 1)
         # self.setRangeSelected(QTableWidgetSelectionRange(0, 0, 4, self.columnCount() -1), True) # To select a range
 
         self.enableTableOptions(row, column)

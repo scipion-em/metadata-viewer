@@ -150,8 +150,9 @@ class ObjectManager:
                 break
         return rows
 
-    def getSelectedRangeRowsIds(self, tableName, top, bottom, column, reverse=True):
-        return self._dao.getSelectedRangeRowsIds(tableName, top, bottom, column, reverse)
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
+        """Return a range of rows starting at 'startRow' an amount of 'numberOfRows' """
+        return self._dao.getSelectedRangeRowsIds(tableName, startRow, numberOfRows, column, reverse)
 
     def getTableNames(self):
         """Return the tables names"""

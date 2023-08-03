@@ -113,10 +113,10 @@ class Selection:
     def getSelection(self):
         return self._selection
 
-    def addRowSelected(self, rowId):
+    def addRowSelected(self, rowId, remove=True):
         if not self.isRowSelected(rowId):
             self._selection[rowId] = True
-        else:
+        elif remove:
             self._selection.pop(rowId)
 
     def isRowSelected(self, rowId):
