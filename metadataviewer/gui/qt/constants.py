@@ -41,6 +41,10 @@ PREFERENCES = 'preferences.png'
 ZOOM_PLUS = 'zoom.png'
 GOTO_ITEM = 'goto_item.png'
 HIDE = 'hide.png'
+CLOSE = 'fa-close.png'
+ERROR = 'error.png'
+FROM_HERE = 'from_here.png'
+TO_HERE = 'to_here.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -61,6 +65,11 @@ GO_TO_ITEM = 'Go to item'
 
 HIDE_COLUMN = 'Hide column'
 
+SELECT = 'Select'
+SELECT_ALL = 'All'
+SELECT_FROM_HERE = 'From here'
+SELECT_TO_HERE = 'To here'
+
 
 # --------------TOOLBAR LABELS & VARIABLES----------------
 
@@ -73,6 +82,10 @@ PAGE_SIZE = 50
 DEFAULT_ROW_HEIGHT = 15
 DEFAULT_STATUS_BAR_HEIGHT = 30
 MAX_ITEMS_INDEX = 8000000
+
+# -------------------- STATUS BAR LABELS ------------------
+
+CLOSE_BUTTON_TEXT = 'Close'
 
 
 

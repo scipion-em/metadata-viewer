@@ -146,6 +146,10 @@ class SqliteFile(IDAO):
                              "values of these columns.")
                 self._extendedColumn = indexCol, representativeCol
 
+    def generateTableActions(self, tableName):
+        """Generate actions for a given table in order to create subsets"""
+        pass
+
     def fillTable(self, table):
         """Create the table structure (columns) and set the table alias"""
         tableName = table.getName()
@@ -160,6 +164,7 @@ class SqliteFile(IDAO):
             values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + str(values[self._extendedColumn[1]]))
         table.createColumns(colNames, values)
         table.setAlias(self._aliases[tableName])
+        self.generateTableActions(tableName)
 
     def fillPage(self, page, actualColumn=0, orderAsc=True):
         """
@@ -196,6 +201,20 @@ class SqliteFile(IDAO):
 
     def getTableRowCount(self, tableName):
         return self._tableCount[tableName]
+
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column,  reverse=True):
+        """Return a range of rows starting at 'startRow' an amount
+           of 'numberOfRows' """
+
+        logger.debug("Reading the table %s and selected a range of rows %d - %d" % (tableName,startRow, numberOfRows + 1))
+        mode = 'ASC' if reverse else 'DESC'
+        col = self._getColumnMap(tableName, column)
+        if col == None:
+            col = column
+        query = "SELECT id FROM %s ORDER BY %s %s LIMIT %d , %d" % (tableName, col, mode, startRow - 1, numberOfRows + 1)
+        rowsList = self._con.execute(query).fetchall()
+        rowsIds = [row['id'] for row in rowsList]
+        return rowsIds
 
     def iterTable(self, tableName, **kwargs):
         """

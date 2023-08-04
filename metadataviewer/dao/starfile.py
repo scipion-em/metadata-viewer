@@ -176,7 +176,7 @@ class StarFile(IDAO):
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
             values = self._tableData[tableName][i]
-            yield i + 1, values
+            yield int(values[0]), values
 
     def close(self):
         if getattr(self, '_file', None):
@@ -192,9 +192,23 @@ class StarFile(IDAO):
         """ Sort the table in place using the provided column.
             :param column is a number, it is the index of one column. """
         _columType = self._labelsTypes[tableName][column]
-        orderList = sorted(self._tableData[tableName], key=lambda x: _columType(x[column]),
+        orderList = sorted(self._tableData[tableName],
+                           key=lambda x: _columType(x[column]),
                            reverse=not sortAsc)
         self._tableData[tableName] = orderList
+
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
+        """Return a range of rows starting at 'startRow' an amount of
+           'numberOfRows' """
+        logger.debug("Reading the table %s and selected a range of rows %d - %d" % (tableName, startRow, numberOfRows + 1))
+        col = 0
+        for i in range(len(self._labels[tableName])):
+            if self._labels[tableName][i] == 'id':
+                col = i
+                break
+        table = self._tableData[tableName]
+        rowsIds = [int(table[row][col]) for row in range(startRow-1, numberOfRows+1)]
+        return rowsIds
 
     def getTableWithAdditionalInfo(self):
         """Return a tuple with the table that need to show additional info and

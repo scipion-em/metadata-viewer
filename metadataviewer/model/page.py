@@ -96,6 +96,42 @@ class Row:
         return self._values
 
 
+class TableAction:
+    def __init__(self, name, callback):
+       self.name = name
+       self.callback = callback
+
+    def getName(self):
+        return self.name
+
+
+class Selection:
+    """Class to represent a dictionary with the selected rows in a table"""
+    def __init__(self):
+        self._selection = {}
+        self._count = 0
+
+    def getSelection(self):
+        return self._selection
+
+    def getCount(self):
+        return self._count
+
+    def addRowSelected(self, rowId, remove=True):
+        if not self.isRowSelected(rowId):
+            self._selection[rowId] = True
+            self._count += 1
+        elif remove:
+            self._selection.pop(rowId)
+            self._count -= 1
+
+    def isRowSelected(self, rowId):
+        return rowId in self._selection
+
+    def clear(self):
+        self._selection.clear()
+        self._count = 0
+
 class Table:
     """Class that represent a table"""
     def __init__(self, name, columns=None):
@@ -105,6 +141,18 @@ class Table:
         self._sortingColumnIndex = -1
         self._sortingAsc = True
         self._sortingChanged = False
+        self._actions = []
+        self._selection = Selection()
+
+    def getSelection(self):
+        """Return a dictionary with the selected rows ids"""
+        return self._selection
+
+    def getActions(self):
+        return self._actions
+
+    def addAction(self, name, callBack=None):
+        self._actions.append(TableAction(name, callBack))
 
     def getName(self):
         """Return the table name"""
