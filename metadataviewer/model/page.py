@@ -109,22 +109,28 @@ class Selection:
     """Class to represent a dictionary with the selected rows in a table"""
     def __init__(self):
         self._selection = {}
+        self._count = 0
 
     def getSelection(self):
         return self._selection
 
+    def getCount(self):
+        return self._count
+
     def addRowSelected(self, rowId, remove=True):
         if not self.isRowSelected(rowId):
             self._selection[rowId] = True
+            self._count += 1
         elif remove:
             self._selection.pop(rowId)
+            self._count -= 1
 
     def isRowSelected(self, rowId):
         return rowId in self._selection
 
     def clear(self):
         self._selection.clear()
-
+        self._count = 0
 
 class Table:
     """Class that represent a table"""

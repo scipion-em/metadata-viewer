@@ -176,7 +176,7 @@ class StarFile(IDAO):
             endRow = self._tableCount[tableName]
         for i in range(firstRow, endRow):
             values = self._tableData[tableName][i]
-            yield values[0], values
+            yield int(values[0]), values
 
     def close(self):
         if getattr(self, '_file', None):

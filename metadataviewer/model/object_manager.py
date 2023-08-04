@@ -126,6 +126,8 @@ class ObjectManager:
     def getCurrentRow(self, table, currentRow):
         """This method return a row given a position in the table"""
         # Calculating the page to which that row belongs
+        if currentRow < 0:
+            currentRow = 0
         pageNumber = self.getNumberPageFromRow(currentRow)
         page = self.getPage(table.getName(), pageNumber, self._pageSize,
                             table.getSortingColumnIndex(),
