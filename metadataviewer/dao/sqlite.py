@@ -29,13 +29,15 @@ import logging
 logger = logging.getLogger()
 
 import sqlite3
-from .model import IDAO
+from .model import IDAO, Table
 
 EXTENDED_COLUMN_NAME = '_representative'
 ALLOWED_COLUMNS_TYPES = ['String', 'Float', 'Integer', 'Boolean', 'Matrix']
 ADITIONAL_INFO_DISPLAY_COLUMN_LIST = ['_size', 'id']
 EXCLUDED_COLUMNS = ['label', 'comment', 'creation', '_streamState']
-
+CLASS_OBJECT = 1
+REPRESENTATIVE_OBJECT = 2
+CLASS_ELEMENTS = 3
 
 class SqliteFile(IDAO):
     """  Class to manipulate Scipion Sqlite files. """
@@ -52,6 +54,7 @@ class SqliteFile(IDAO):
         self._columnsMap = {}
         self._extendedColumn = None
         self._tableWithAdditionalInfo = None
+        self._objectsType = []
 
     def __loadDB(self, sqliteFile):
         """Load a sqlite file"""
@@ -85,8 +88,12 @@ class SqliteFile(IDAO):
         className = firstRow['class_name']
         if tableName.__contains__('_'):
             alias = tableName.split('_')[0] + '_' + className
+            typeObject = REPRESENTATIVE_OBJECT
         else:
             alias = className
+            typeObject = CLASS_OBJECT
+        if className not in self._objectsType:
+            self._objectsType.append(className)
         return alias
 
     def getTableNames(self):
@@ -146,9 +153,16 @@ class SqliteFile(IDAO):
                              "values of these columns.")
                 self._extendedColumn = indexCol, representativeCol
 
-    def generateTableActions(self, tableName):
+    def generateTableActions(self, table):
         """Generate actions for a given table in order to create subsets"""
-        pass
+        alias = table.getAlias()
+        if alias.startswith('Class') and len(alias.split('_')) == 1:
+            table.addAction(self._objectsType[0], lambda: self.createSubsetCallback(table, self._objectsType[0]))
+            table.addAction(self._objectsType[1], lambda: self.createSubsetCallback(table, self._objectsType[1]))
+            table.addAction('SetOfAverage', lambda: self.createSubsetCallback(table, 'SetOfAverage'))
+        else:
+            objectType = alias.split('_')[1] if len(alias.split('_')) > 1 else alias
+            table.addAction(objectType, lambda: self.createSubsetCallback(table, objectType))
 
     def fillTable(self, table):
         """Create the table structure (columns) and set the table alias"""
@@ -164,7 +178,7 @@ class SqliteFile(IDAO):
             values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + str(values[self._extendedColumn[1]]))
         table.createColumns(colNames, values)
         table.setAlias(self._aliases[tableName])
-        self.generateTableActions(tableName)
+        self.generateTableActions(table)
 
     def fillPage(self, page, actualColumn=0, orderAsc=True):
         """
@@ -295,6 +309,27 @@ class SqliteFile(IDAO):
         """Return a tuple with the table that need to show additional info and
         the column that we need to show"""
         return self._tableWithAdditionalInfo, ADITIONAL_INFO_DISPLAY_COLUMN_LIST
+
+    def createSubsetCallback(self, table: Table, objectType: str):
+        """Create a """
+        path = '/tmp/ids.txt'
+        self.writeSelection(table, path)
+        #
+
+    def writeSelection(self, table: Table, path):
+        """ Create a file with the selected rows ids"""
+        tableName = table.getName()
+        rowsIds = table.getSelection().getSelection().keys()
+        if not rowsIds:
+            rowsIds = [i+1 for i in range(self._tableCount[tableName])]
+        try:
+            with open(path, 'w') as file:
+                for rowId in rowsIds:
+                    file.write(str(rowId) + ' ')
+                file.close()
+            logger.debug(f"The file: {path} was created correctly.")
+        except Exception as e:
+            logger.error(f"Error creating the file: {e}")
 
     def close(self):
         if getattr(self, '_con', None):

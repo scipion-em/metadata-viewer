@@ -45,6 +45,7 @@ CLOSE = 'fa-close.png'
 ERROR = 'error.png'
 FROM_HERE = 'from_here.png'
 TO_HERE = 'to_here.png'
+PLUS = 'plus.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'

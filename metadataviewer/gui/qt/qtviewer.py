@@ -863,7 +863,7 @@ class QTMetadataViewer(QMainWindow):
         window_rect = self.frameGeometry()
         # Calculate the position for centering the window on the screen
         x = (screen_rect.width() - window_rect.width()) // 2
-        y = (screen_rect.height() - window_rect.height()) // 2 - 100
+        y = (screen_rect.height() - window_rect.height()) // 2
         # Move the window to the centered position
         self.move(x, y)
 
@@ -894,6 +894,7 @@ class QTMetadataViewer(QMainWindow):
         self.statusbar = QStatusBar()
         self.setStatusBar(self.statusbar)
         self.statusbar.setFixedHeight(DEFAULT_STATUS_BAR_HEIGHT)
+        self.permanentWidgets = []
 
         # Information of current row and column
         self.statusBarCurrentRowColumn = QLabel("", self)
@@ -905,18 +906,38 @@ class QTMetadataViewer(QMainWindow):
         self.statusBar().addWidget(self.statusBarSelectedRows)
         self.statusBar().addWidget(self.createSeparator())
 
+        # Message of actives row and column
+        self._updateStatusBarRowColumn()
+        # Message of the number of selected rows
+        self._updateStatusBarSelectedRows()
+        # Adding create subsets button
+        self._createActionButtons()
+
+    def _createActionButtons(self):
+        self.removePermanentWidgets()
+        # Subsets buttons
+        actions = self.table.getTable().getActions()
+        for action in actions:
+            actionButton = QPushButton(action.getName())
+            actionButton.setIcon(QIcon(getImage(PLUS)))
+            self.statusBar().addPermanentWidget(actionButton)
+            self.permanentWidgets.append(actionButton)
+            actionButton.clicked.connect(action._callback)
+
         # Close button
         closeButton = QPushButton(CLOSE_BUTTON_TEXT)
         closeButton.setIcon(QIcon(getImage(ERROR)))
         closeButton.clicked.connect(sys.exit)
         self.statusBar().addPermanentWidget(closeButton)
+        self.permanentWidgets.append(closeButton)
 
-        # Message of actives row and column
-        self._updateStatusBarRowColumn()
-        # Message of the number of selected rows
-        self._updateStatusBarSelectedRows()
+    def removePermanentWidgets(self):
+        """Delete all PermanentWidgets stored in list(status bar buttons)"""
+        for widget in self.permanentWidgets:
+            self.statusBar().removeWidget(widget)
 
     def createSeparator(self):
+        """Create a separator in order to use in the status bar"""
         separator = QFrame(self)
         separator.setFrameShape(QFrame.VLine)
         separator.setFrameShadow(QFrame.Sunken)
@@ -924,6 +945,7 @@ class QTMetadataViewer(QMainWindow):
         return separator
 
     def _updateStatusBarRowColumn(self):
+        """Update the status bar information for the current row and column"""
         row = self.gallery.getActualRow() if self._galleryView else self.table.getActualRow()
         column = self.gallery.getActualColumn() if self._galleryView else self.table.getActualColumn()
         if self._galleryView:
@@ -932,6 +954,7 @@ class QTMetadataViewer(QMainWindow):
             self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {self.table.getColumns()[column].getName()}")
 
     def _updateStatusBarSelectedRows(self):
+        """Update the status bar information for the number of selected rows"""
         selectedRows = self.table.getTable().getSelection().getCount()
         if self._galleryView:
             self.statusBarSelectedRows.setText(f"Selected images: {selectedRows}")
@@ -1200,6 +1223,7 @@ class QTMetadataViewer(QMainWindow):
 
             self._rowsCount = self.objectManager.getTableRowCount(tableName)
             self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
+            self._createActionButtons()
 
     def onVerticalHeaderClicked(self, index):
         """Event that control when the vertical header is clicked"""
