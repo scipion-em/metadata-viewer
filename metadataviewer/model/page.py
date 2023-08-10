@@ -98,11 +98,11 @@ class Row:
 
 class TableAction:
     def __init__(self, name, callback):
-       self.name = name
-       self.callback = callback
+       self._name = name
+       self._callback = callback
 
     def getName(self):
-        return self.name
+        return self._name
 
 
 class Selection:
@@ -151,8 +151,8 @@ class Table:
     def getActions(self):
         return self._actions
 
-    def addAction(self, name, callBack=None):
-        self._actions.append(TableAction(name, callBack))
+    def addAction(self, name, callback):
+        self._actions.append(TableAction(name, callback))
 
     def getName(self):
         """Return the table name"""

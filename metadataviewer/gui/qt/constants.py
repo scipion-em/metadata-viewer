@@ -45,6 +45,9 @@ CLOSE = 'fa-close.png'
 ERROR = 'error.png'
 FROM_HERE = 'from_here.png'
 TO_HERE = 'to_here.png'
+PLUS = 'plus.png'
+EXPORT_XLSX = 'export_xlsx.png'
+EXPORT_CSV = 'export_csv.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -78,6 +81,8 @@ ZOOM = 'Size in pixels'
 
 # ---------------------CONSTANTS-----------------
 ZOOM_SIZE = 150
+ZOOM_MIN_SIZE = 150
+ZOOM_MAX_SIZE = 2000
 PAGE_SIZE = 50
 DEFAULT_ROW_HEIGHT = 15
 DEFAULT_STATUS_BAR_HEIGHT = 30
@@ -86,6 +91,7 @@ MAX_ITEMS_INDEX = 8000000
 # -------------------- STATUS BAR LABELS ------------------
 
 CLOSE_BUTTON_TEXT = 'Close'
+EXPORT_TO_CSV = 'Export to .csv'
 
 
 

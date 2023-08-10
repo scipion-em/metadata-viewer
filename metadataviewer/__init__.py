@@ -31,6 +31,8 @@ from PyQt5.QtWidgets import QApplication
 
 from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
 
+__version__ = 1.0
+
 QT_VIEWER = 'qtviewer'
 
 
