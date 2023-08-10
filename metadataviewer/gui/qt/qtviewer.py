@@ -36,7 +36,7 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt
+from PyQt5.QtCore import Qt, QItemSelectionModel
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
@@ -44,8 +44,8 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QHBoxLayout, QTableWidgetItem, QComboBox,
                              QStatusBar, QAbstractItemView, QSpinBox,
                              QPushButton, QApplication,
-                             QTableWidgetSelectionRange, QToolBar, QFrame,
-                             QDesktopWidget)
+                             QTableWidgetSelectionRange, QFrame, QDesktopWidget,
+                             QFileDialog)
 
 from metadataviewer.model.object_manager import ObjectManager
 from .constants import *
@@ -302,8 +302,8 @@ class TableView(QTableWidget):
         self.propertiesTableDialog = ColumnPropertiesTable(self, self)
         self._pageNumber = 1  # First page
         self._pageSize = ZOOM_SIZE
-        self._actualRow = 0
-        self._actualColumn = 0
+        self._currentRow = 0
+        self._currentColumn = 0
         self._lastSelectedColumn = None
         self._lastSelectedRow = 0
         self._orderAsc = True
@@ -339,9 +339,9 @@ class TableView(QTableWidget):
         self.setHorizontalScrollBar(self.hScrollBar)
         self.vScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.hScrollBar.valueChanged.connect(lambda: self._loadRows())
-        self.cellClicked.connect(self.setActualRowColumn)
-        self.horizontalHeader().sectionClicked.connect(self.setActualColumn)
-        self.verticalHeader().sectionClicked.connect(self.setActualRow)
+        self.cellClicked.connect(self.setCurrentRowColumn)
+        self.horizontalHeader().sectionClicked.connect(self.setCurrentColumn)
+        self.verticalHeader().sectionClicked.connect(self.setCurrentRow)
         # self.setCurrentCell(0, 0)
 
     def getTable(self):
@@ -391,8 +391,8 @@ class TableView(QTableWidget):
         if self._lastSelectedColumn is not None:
             self.horizontalHeaderItem(self._lastSelectedColumn).setIcon(QIcon(None))
 
-        self._lastSelectedColumn = self._actualColumn
-        self._actualColumn = column
+        self._lastSelectedColumn = self._currentColumn
+        self._currentColumn = column
 
         self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
         self.objectManager.sort(self._tableName, column, self._orderAsc)
@@ -496,25 +496,25 @@ class TableView(QTableWidget):
         self.clearSelection()
         self._addRows(rows, currentRowIndex, currenctColumnIndex)
 
-    def getActualColumn(self):
+    def getCurrentColumn(self):
         """Get the current column"""
-        return self._actualColumn
+        return self._currentColumn
 
-    def getActualRow(self):
+    def getCurrentRow(self):
         """Get the current row"""
-        return self._actualRow
+        return self._currentRow
 
-    def setActualRowColumn(self, row, column):
+    def setCurrentRowColumn(self, row, column):
         """Update the current row and column"""
-        self._lastSelectedRow = self._actualRow
-        self._actualRow = row
-        self._actualColumn = column
+        self._lastSelectedRow = self._currentRow
+        self._currentRow = row
+        self._currentColumn = column
 
-    def setActualColumn(self, column):
-        self._actualColumn = column
+    def setCurrentColumn(self, column):
+        self._currentColumn = column
 
-    def setActualRow(self, row):
-        self._actualRow = row
+    def setCurrentRow(self, row):
+        self._currentRow = row
         
     def getLastSelectedRow(self):
         return self._lastSelectedRow
@@ -532,10 +532,10 @@ class GalleryView(QTableWidget):
         self._table = self.objectManager.getTable(self.tableNames[0])
         self._tableName = self._table.getName()
         self._tableAlias = self._table.getAlias()
-        self._actualRow = 0
-        self._actualColumn = 0
+        self._currentRow = 0
+        self._currentColumn = 0
         self._lastSelectedCell = 0
-        self.cellClicked.connect(self.setActualRowColumn)
+        self.cellClicked.connect(self.setCurrentRowColumn)
         self.setGeometry(0, 0, 600, 600)
         self._oldzoom = ZOOM_SIZE
         self._rowHeight = ZOOM_SIZE
@@ -549,13 +549,13 @@ class GalleryView(QTableWidget):
         """Return the table columns"""
         return self._columns
 
-    def getActualColumn(self):
+    def getCurrentColumn(self):
         """Get the current column"""
-        return self._actualColumn
+        return self._currentColumn
 
-    def getActualRow(self):
+    def getCurrentRow(self):
         """Get the current row"""
-        return self._actualRow
+        return self._currentRow
 
     def getColumnsCount(self):
         return self._columnsCount
@@ -645,7 +645,7 @@ class GalleryView(QTableWidget):
         renderer = self.getRenderer()
         rowsValues = [row.getValues()[self._columnWithImages] for row in rows]
         countImages = 0
-
+        selection = self.getTable().getSelection().getSelection()
         if self._columnWithImages:
             for row in range(visibleRows):
                 for col in range(self._columnsCount):
@@ -663,7 +663,7 @@ class GalleryView(QTableWidget):
                         widget = CustomWidget(item, currentRow.getId(), imagePath=value)
 
                     self.setCellWidget(currentValue + row, col, widget)
-                    if rows[countImages].getId() in self.getTable().getSelection().getSelection():
+                    if rows[countImages].getId() in selection:
                         self.setRangeSelected(QTableWidgetSelectionRange(currentValue + row, col, currentValue + row, col),  True)
 
                     self.setColumnWidth(col, self.getOldZoom() + 5)
@@ -710,14 +710,14 @@ class GalleryView(QTableWidget):
 
         self._loadImages()
 
-    def setActualRowColumn(self, row, column):
+    def setCurrentRowColumn(self, row, column):
         """Update the current row and column"""
         columnsCount = len(self.table.getColumns())
-        index = self._actualRow * columnsCount + self._actualColumn + 1
+        index = self._currentRow * columnsCount + self._currentColumn + 1
         self._lastSelectedCell = index
 
-        self._actualRow = row
-        self._actualColumn = column
+        self._currentRow = row
+        self._currentColumn = column
 
 
 class ImageViewer(QDialog):
@@ -777,16 +777,16 @@ class QTMetadataViewer(QMainWindow):
 
         self._columnWithImages = self.table.getColumnWithImages()
 
-        self._createActions()
-        self._createMenuBar()
-        self._createToolBars()
-        self._createStatusBar()
-
         # GalleryView
         self.gallery = GalleryView(self.objectManager)
         self.gallery._createGallery(self.tableName)
         self.gallery.cellClicked.connect(self._galleryCellClicked)
         self.gallery.cellDoubleClicked.connect(self.showImage)
+
+        self._createActions()
+        self._createMenuBar()
+        self._createToolBars()
+        self._createStatusBar()
 
         if self._galleryView:
             self._loadGalleryView()
@@ -797,7 +797,7 @@ class QTMetadataViewer(QMainWindow):
         """Show the contextual menu when a column is selected by right-click"""
         # Obtaining the column
         col = self.table.horizontalHeader().logicalIndexAt(pos.x())
-        self.table.setActualColumn(col)
+        self.table.setCurrentColumn(col)
         # Creating the contextual menu
         contextMenu = QMenu(self)
 
@@ -820,7 +820,7 @@ class QTMetadataViewer(QMainWindow):
         """Show the contextual menu when a column is selected by right-click"""
         # Obtaining the column
         row = self.table.verticalHeader().logicalIndexAt(pos.y())
-        self.table.setActualRow(row)
+        self.table.setCurrentRow(row)
         # Creating the contextual menu
         contextMenu = QMenu(self)
 
@@ -914,6 +914,7 @@ class QTMetadataViewer(QMainWindow):
         self._createActionButtons()
 
     def _createActionButtons(self):
+        """Method that create the status bar buttons"""
         self.removePermanentWidgets()
         # Subsets buttons
         actions = self.table.getTable().getActions()
@@ -923,6 +924,13 @@ class QTMetadataViewer(QMainWindow):
             self.statusBar().addPermanentWidget(actionButton)
             self.permanentWidgets.append(actionButton)
             actionButton.clicked.connect(action._callback)
+
+        # Export to .csv
+        exportAction = QPushButton(EXPORT_TO_CSV)
+        exportAction.setIcon(QIcon(getImage(EXPORT_CSV)))
+        self.statusBar().addPermanentWidget(exportAction)
+        self.permanentWidgets.append(exportAction)
+        exportAction.clicked.connect(self.exportToCSV)
 
         # Close button
         closeButton = QPushButton(CLOSE_BUTTON_TEXT)
@@ -937,7 +945,7 @@ class QTMetadataViewer(QMainWindow):
             self.statusBar().removeWidget(widget)
 
     def createSeparator(self):
-        """Create a separator in order to use in the status bar"""
+        """Create a separator in order to use it in the status bar"""
         separator = QFrame(self)
         separator.setFrameShape(QFrame.VLine)
         separator.setFrameShadow(QFrame.Sunken)
@@ -946,8 +954,8 @@ class QTMetadataViewer(QMainWindow):
 
     def _updateStatusBarRowColumn(self):
         """Update the status bar information for the current row and column"""
-        row = self.gallery.getActualRow() if self._galleryView else self.table.getActualRow()
-        column = self.gallery.getActualColumn() if self._galleryView else self.table.getActualColumn()
+        row = self.gallery.getCurrentRow() if self._galleryView else self.table.getCurrentRow()
+        column = self.gallery.getCurrentColumn() if self._galleryView else self.table.getCurrentColumn()
         if self._galleryView:
             self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {column + 1}")
         else:
@@ -961,13 +969,25 @@ class QTMetadataViewer(QMainWindow):
         else:
             self.statusBarSelectedRows.setText(f"Selected rows: {selectedRows}")
 
+    def exportToExcel(self):
+        """Method that export"""
+        filepath, _ = QFileDialog.getSaveFileName(self, 'Save XLSX File', '',
+                                                  'XLSX Files (*.xlsx)')
+        self.objectManager.exportToExcel(self.tableName, filepath)
+
+    def exportToCSV(self):
+        filepath, _ = QFileDialog.getSaveFileName(self, 'Save CSV File', '',
+                                                  'CSV Files (*.csv)')
+        self.objectManager.exportToCSV(self.tableName, filepath)
+
     def _createActions(self):
         """Create a set of GUI actions"""
         # File actions
-        self.newAction = QAction(self)
-        self.newAction.setText("&Open...")
-        self.newAction.setShortcut(QKeySequence("Ctrl+O"))
-        self.newAction.setIcon(QIcon(getImage(FOLDER)))
+        self.openAction = QAction(self)
+        self.openAction.setText("&Open...")
+        self.openAction.setShortcut(QKeySequence("Ctrl+O"))
+        self.openAction.setIcon(QIcon(getImage(FOLDER)))
+        self.openAction.triggered.connect(self.openFile)
 
         self.exitAction = QAction(self)
         self.exitAction.setText("E&xit")
@@ -1006,11 +1026,13 @@ class QTMetadataViewer(QMainWindow):
 
         self.sortUp = QAction(SORT_ASC, self)
         self.sortUp.setIcon(QIcon(getImage(DOWN_ARROW)))
-        self.sortUp.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), True))
+        self.sortUp.setShortcut(QKeySequence('A'))
+        self.sortUp.triggered.connect(lambda: self.table.orderByColumn(self.table.getCurrentColumn(), True))
 
         self.sortDown = QAction(SORT_DESC, self)
         self.sortDown.setIcon(QIcon(getImage(UP_ARROW)))
-        self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getActualColumn(), False))
+        self.sortDown.setShortcut(QKeySequence('D'))
+        self.sortDown.triggered.connect(lambda: self.table.orderByColumn(self.table.getCurrentColumn(), False))
 
     def _createMenuBar(self):
         """ Create the menu """
@@ -1020,15 +1042,14 @@ class QTMetadataViewer(QMainWindow):
         #  File menu
         fileMenu = QMenu("&File", self)
         menu_bar.addMenu(fileMenu)
-        fileMenu.addAction(self.newAction)
+        fileMenu.addAction(self.openAction)
         fileMenu.addSeparator()
         fileMenu.addAction(self.exitAction)
 
         # Display menu
         displayMenu = QMenu("&Display", self)
         menu_bar.addMenu(displayMenu)
-        if self._tableView:
-            displayMenu.addAction(self.table.propertiesTableAction)
+        displayMenu.addAction(self.table.propertiesTableAction)
 
         # Tools menu
         toolsMenu = QMenu("&Tools", self)
@@ -1074,8 +1095,8 @@ class QTMetadataViewer(QMainWindow):
         self.zoomLabel.setEnabled(False)
 
         self.zoom = QSpinBox()
-        self.zoom.setMaximum(2000)
-        self.zoom.setMinimum(ZOOM_SIZE)
+        self.zoom.setMaximum(ZOOM_MAX_SIZE)
+        self.zoom.setMinimum(ZOOM_MIN_SIZE)
         self.zoom.setValue(ZOOM_SIZE)
         self.zoom.setToolTip(ZOOM)
         self.zoom.setFixedWidth(70)
@@ -1109,6 +1130,10 @@ class QTMetadataViewer(QMainWindow):
         columnsToolBar2.addWidget(self.gotoItemLabel)
         columnsToolBar2.addWidget(self.goToItem)
 
+    def openFile(self):
+        filepath, _ = QFileDialog.getOpenFileNames(self, 'Open metadata File',
+                                                   '', '(*.sqlite *.star *.xmd)')
+
     def enableGalleryOption(self):
         """Preference of gallery mode"""
         self.zoom.setValue(self.gallery.getOldZoom())
@@ -1124,7 +1149,7 @@ class QTMetadataViewer(QMainWindow):
     def enableTableOptions(self, row, column):
         """Preference of table mode"""
         self.zoom.setValue(self.table.getOldZoom())
-        isSorteable = self.table.getColumns()[self.table.getActualColumn()].isSorteable()
+        isSorteable = self.table.getColumns()[self.table.getCurrentColumn()].isSorteable()
         self.sortUp.setEnabled(isSorteable)
         self.sortDown.setEnabled(isSorteable)
         self.table.propertiesTableAction.setEnabled(True)
@@ -1171,10 +1196,10 @@ class QTMetadataViewer(QMainWindow):
         self.setCentralWidget(self.table)
         self.bockTableName.setEnabled(True)
         self.table._fillTable()
-        self.table.setActualRowColumn(self.goToItem.value(),
-                                      self.table.getActualColumn())
-        self.enableTableOptions(self.table.getActualRow(),
-                                self.table.getActualColumn())
+        self.table.setCurrentRowColumn(self.goToItem.value(),
+                                      self.table.getCurrentColumn())
+        self.enableTableOptions(self.table.getCurrentRow(),
+                                self.table.getCurrentColumn())
         self._gotoItem(self.goToItem.value())
 
     def _loadGalleryView(self):
@@ -1210,10 +1235,10 @@ class QTMetadataViewer(QMainWindow):
             self.gallery._createGallery(tableName)
 
             if self._galleryView and self.table.getColumnWithImages():
-                self.gallery.setActualRowColumn(0, 0)
+                self.gallery.setCurrentRowColumn(0, 0)
                 self._loadGalleryView()
             else:
-                self.table.setActualRowColumn(0, 0)
+                self.table.setCurrentRowColumn(0, 0)
                 self._loadTableView()
                 galleryEnable = True if self.gallery.getColumnWithImages() else False
                 if galleryEnable:
@@ -1223,12 +1248,13 @@ class QTMetadataViewer(QMainWindow):
 
             self._rowsCount = self.objectManager.getTableRowCount(tableName)
             self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
+            self._updateStatusBarRowColumn()
             self._createActionButtons()
 
     def onVerticalHeaderClicked(self, index):
         """Event that control when the vertical header is clicked"""
-        self.table.setActualRow(index)
-        self._tableCellClicked(index, self.table.getActualColumn())
+        self.table.setCurrentRow(index)
+        self._tableCellClicked(index, self.table.getCurrentColumn())
         self.goToItem.setValue(index + 1)
         self._updateStatusBarRowColumn()
         self._updateStatusBarSelectedRows()
@@ -1278,20 +1304,20 @@ class QTMetadataViewer(QMainWindow):
     def selectFromHere(self):
         """Mark as selected a range from the current row to the last row in
            the table"""
-        selection = QTableWidgetSelectionRange(self.table.getActualRow(), 0,
+        selection = QTableWidgetSelectionRange(self.table.getCurrentRow(), 0,
                                                self._rowsCount - 1,
                                                self.table.columnCount() - 1)
         self.table.setRangeSelected(selection, True)
-        self.selectedRange(self.table.getActualRow() + 1, self._rowsCount)
+        self.selectedRange(self.table.getCurrentRow() + 1, self._rowsCount)
 
     def selectToHere(self):
         """Mark as selected a range from the first row to the current row in
            the table"""
         selection = QTableWidgetSelectionRange(0, 0,
-                                               self.table.getActualRow(),
+                                               self.table.getCurrentRow(),
                                                self.table.columnCount() - 1)
         self.table.setRangeSelected(selection, True)
-        self.selectedRange(0, self.table.getActualRow())
+        self.selectedRange(0, self.table.getCurrentRow())
 
     def selectedRange(self, top, bottom):
         """Mark as selected a range of rows starting from 'top' to 'bottom' """
@@ -1330,9 +1356,9 @@ class QTMetadataViewer(QMainWindow):
         self._triggeredGotoItem = False
         self.goToItem.setValue(row + 1)
         self._triggeredGotoItem = True
-        self.table.setActualRowColumn(row + 1, self.table.getActualColumn())
         self._updateStatusBarRowColumn()
         self._updateStatusBarSelectedRows()
+        self.table.setCurrentRowColumn(row + 1, self.table.getCurrentColumn())
 
     def _galleryCellClicked(self, row, column):
         """Event that control the gallery when click in a image"""
@@ -1352,7 +1378,7 @@ class QTMetadataViewer(QMainWindow):
         self._triggeredGotoItem = False
         self.goToItem.setValue(index)
         self._triggeredGotoItem = True
-        self.gallery.setActualRowColumn(row, self.gallery.getActualColumn())
+        self.gallery.setCurrentRowColumn(row, self.gallery.getCurrentColumn())
         self._updateStatusBarRowColumn()
         self._updateStatusBarSelectedRows()
 
@@ -1373,23 +1399,25 @@ class QTMetadataViewer(QMainWindow):
             row = itemIndex // columnsCount
             if moveScroll:
                 self.gallery.vScrollBar.setValue(row)
-            # self.gallery.setCurrentCell(row, col)
-            self.gallery.setActualRowColumn(row, col)
+            newIndex = self.gallery.model().index(row, col)
+            self.gallery.selectionModel().setCurrentIndex(newIndex, QItemSelectionModel.NoUpdate)
+            self.gallery.scrollTo(newIndex, QTableWidget.PositionAtCenter)
+            self.gallery.setFocus()
+            self.gallery.setCurrentRowColumn(row, col)
 
         else:
-            self.table.setActualRowColumn(itemIndex,
-                                          self.table.getActualColumn())
+            col = self.table.getCurrentColumn()
+            self.table.setCurrentRowColumn(itemIndex, col)
             if moveScroll:
                 self.table.vScrollBar.setValue(itemIndex)
-            self.table.setActualRowColumn(itemIndex,
-                                          self.table.getActualColumn())
+            self.table.setCurrentRowColumn(itemIndex,col)
         self._updateStatusBarRowColumn()
         self._updateStatusBarSelectedRows()
 
     def _redIncDecimals(self, flag):
         """Method that control the increments or reduce decimals when a float
         table cell is selected"""
-        column = self.table.getActualColumn()
+        column = self.table.getCurrentColumn()
         decimals = self.table.getColumns()[column].getRenderer().getDecimalsNumber()
         redInc = -1 if flag else 1
         if decimals + redInc > 0:

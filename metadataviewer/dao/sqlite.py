@@ -216,7 +216,7 @@ class SqliteFile(IDAO):
     def getTableRowCount(self, tableName):
         return self._tableCount[tableName]
 
-    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column,  reverse=True):
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
         """Return a range of rows starting at 'startRow' an amount
            of 'numberOfRows' """
 

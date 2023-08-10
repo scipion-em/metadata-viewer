@@ -28,7 +28,9 @@ import logging
 logger = logging.getLogger()
 
 import os
+import csv
 from functools import lru_cache
+from openpyxl import Workbook
 
 from metadataviewer.dao import StarFile, SqliteFile
 from metadataviewer.model import Table, Page
@@ -187,6 +189,48 @@ class ObjectManager:
     def getTableWithAdditionalInfo(self):
         return self._dao.getTableWithAdditionalInfo()
 
+    def exportToExcel(self, tableName, filepath):
+        """Export the table selection to a .xlsx file"""
+        table = self.getTable(tableName)
+        wb = Workbook()
+        ws = wb.active
+        selection = table.getSelection().getSelection()
+        columns = table.getColumns()
+        columnsCount = len(columns)
+
+        # Create the columns header
+        for col, column in enumerate(columns):
+            ws.cell(row=1, column=col + 1, value=column.getName())
+
+        # Fill the .xlsx table
+        for row, rowId in enumerate(selection):
+            for col in range(columnsCount):
+                rowValues = self.getCurrentRow(table, rowId-1).getValues()
+                item = str(rowValues[col])
+                if item is not None:
+                    ws.cell(row=row + 2, column=col + 1, value=item)
+        try:
+            wb.save(filepath)
+            logger.info('The .xlsx file was generated successfully')
+        except Exception as e:
+            logger.error("There was a problem generating the .xlsx file")
+
+    def exportToCSV(self, tableName, filepath):
+        """Export the table selection to a .csv file"""
+        table = self.getTable(tableName)
+        selection = table.getSelection().getSelection()
+        columns = table.getColumns()
+
+        if filepath:
+            with open(filepath, 'w', newline='') as csv_file:
+                csv_writer = csv.writer(csv_file)
+                header_data = [col.getName() for col in columns]
+                csv_writer.writerow(header_data)
+
+                for row, rowId in enumerate(selection):
+                    rowValues = self.getCurrentRow(table,  rowId - 1).getValues()
+                    if rowValues is not None:
+                        csv_writer.writerow(rowValues)
 
 
 
