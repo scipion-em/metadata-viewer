@@ -41,7 +41,7 @@ class IDAO:
        pass
 
     @abstractmethod
-    def fillTable(self, table: Table) -> None:
+    def fillTable(self, table: Table, objectManager) -> None:
         pass
 
     @abstractmethod

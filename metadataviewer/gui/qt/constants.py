@@ -48,6 +48,7 @@ TO_HERE = 'to_here.png'
 PLUS = 'plus.png'
 EXPORT_XLSX = 'export_xlsx.png'
 EXPORT_CSV = 'export_csv.png'
+OK = 'fa-ok.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -92,6 +93,11 @@ MAX_ITEMS_INDEX = 8000000
 
 CLOSE_BUTTON_TEXT = 'Close'
 EXPORT_TO_CSV = 'Export to .csv'
+
+# ------------------ DIALOG TEXTS ------------
+
+CANCEL = 'Cancel'
+ACCEPT = 'Accept'
 
 
 

@@ -36,7 +36,7 @@ import sys
 
 from PIL import Image
 from PyQt5 import QtGui
-from PyQt5.QtCore import Qt, QItemSelectionModel
+from PyQt5.QtCore import Qt, QItemSelectionModel, QCoreApplication
 from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
@@ -45,9 +45,9 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QStatusBar, QAbstractItemView, QSpinBox,
                              QPushButton, QApplication,
                              QTableWidgetSelectionRange, QFrame, QDesktopWidget,
-                             QFileDialog)
+                             QFileDialog, QLineEdit, QGridLayout)
 
-from metadataviewer.model.object_manager import ObjectManager
+from metadataviewer.model.object_manager import ObjectManager, IGUI
 from .constants import *
 from metadataviewer.gui import getImage
 
@@ -623,7 +623,7 @@ class GalleryView(QTableWidget):
         while columnaX < viewportWidth:
             columnaX += self.getOldZoom() + 5  # Making the cells a little larger than the contents
             visibleCols += 1
-        return visibleCols + 1
+        return visibleCols
 
     def getColumnWithImages(self):
         """Return the index of the column of contain images"""
@@ -740,13 +740,14 @@ class ImageViewer(QDialog):
         self.label.setPixmap(pixmap.scaledToWidth(600, Qt.SmoothTransformation))
 
 
-class QTMetadataViewer(QMainWindow):
+class QTMetadataViewer(QMainWindow, IGUI):
     """Qt Metadata viewer window"""
     def __init__(self, args):
         super().__init__()
         self._fileName = os.path.abspath(args.fileName)
         self.objectManager = ObjectManager(args.fileName)
         self.objectManager.selectDAO()
+        self.objectManager.setGui(self)
         self.tableNames = self.objectManager.getTableNames()
         self.tableName = self.tableNames[0]
         self.tableAliases = self.objectManager.getTableAliases()
@@ -769,6 +770,7 @@ class QTMetadataViewer(QMainWindow):
         self.table = TableView(self.objectManager)
         self.table._createTable(self.tableName)
         self.table.verticalHeader().sectionClicked.connect(self.onVerticalHeaderClicked)
+        self.table.horizontalHeader().sectionClicked.connect(self.onHorizontalHeaderClicked)
         self.table.cellClicked.connect(self._tableCellClicked)
         self.table.horizontalHeader().setContextMenuPolicy(3)
         self.table.horizontalHeader().customContextMenuRequested.connect(self.showHorizontalContextMenu)
@@ -906,11 +908,6 @@ class QTMetadataViewer(QMainWindow):
         self.statusBar().addWidget(self.statusBarSelectedRows)
         self.statusBar().addWidget(self.createSeparator())
 
-        # Message of actives row and column
-        self._updateStatusBarRowColumn()
-        # Message of the number of selected rows
-        self._updateStatusBarSelectedRows()
-        # Adding create subsets button
         self._createActionButtons()
 
     def _createActionButtons(self):
@@ -963,11 +960,50 @@ class QTMetadataViewer(QMainWindow):
 
     def _updateStatusBarSelectedRows(self):
         """Update the status bar information for the number of selected rows"""
+        self.statusBarSelectedRows.setStyleSheet(f"color: '' ;")
         selectedRows = self.table.getTable().getSelection().getCount()
         if self._galleryView:
             self.statusBarSelectedRows.setText(f"Selected images: {selectedRows}")
         else:
             self.statusBarSelectedRows.setText(f"Selected rows: {selectedRows}")
+
+    def _updateStatusBarMessage(self, msg):
+        """Update the status bar message"""
+        self.statusBarSelectedRows.setText(msg)
+        self.statusBarSelectedRows.setStyleSheet(f"color: {'red'};")
+        QCoreApplication.processEvents()
+
+    def writeMessage(self, msg):
+        self._updateStatusBarMessage(msg)
+
+    def getSaveFileName(self):
+        filepath, _ = QFileDialog.getSaveFileName(self, 'Save CSV File', '',
+                                                  'CSV Files (*.csv)')
+        return filepath
+
+    def getSubsetName(self, typeOfObjects, elementsCount):
+        subsetNameDialog = QDialog()
+        subsetNameDialog.setWindowTitle("Question")
+        layout = QGridLayout()
+        label = QLabel("Are you sure want to create a new subset of %s " % (typeOfObjects))
+        labelRunName = QLabel("Run name: ")
+        line_edit = QLineEdit('create subset')
+        acceptButton = QPushButton(ACCEPT)
+        acceptButton.setIcon(QIcon(getImage(OK)))
+        cancelButton = QPushButton(CANCEL)
+        cancelButton.setIcon(QIcon(getImage(ERROR)))
+        acceptButton.clicked.connect(subsetNameDialog.accept)
+        cancelButton.clicked.connect(subsetNameDialog.reject)
+
+        layout.addWidget(label, 0, 0, 1, 4, Qt.AlignCenter)
+        layout.addWidget(labelRunName, 1, 0, 1, 1)
+        layout.addWidget(line_edit, 1, 1, 1, 3)
+        layout.addWidget(acceptButton, 2, 2, Qt.AlignRight)
+        layout.addWidget(cancelButton, 2, 3, Qt.AlignLeft)
+        subsetNameDialog.setLayout(layout)
+        if subsetNameDialog.exec_() == QDialog.Accepted:
+            return line_edit.text()
+        return None
 
     def exportToExcel(self):
         """Method that export"""
@@ -976,9 +1012,7 @@ class QTMetadataViewer(QMainWindow):
         self.objectManager.exportToExcel(self.tableName, filepath)
 
     def exportToCSV(self):
-        filepath, _ = QFileDialog.getSaveFileName(self, 'Save CSV File', '',
-                                                  'CSV Files (*.csv)')
-        self.objectManager.exportToCSV(self.tableName, filepath)
+        self.objectManager.exportToCSV(self.tableName)
 
     def _createActions(self):
         """Create a set of GUI actions"""
@@ -1259,6 +1293,11 @@ class QTMetadataViewer(QMainWindow):
         self._updateStatusBarRowColumn()
         self._updateStatusBarSelectedRows()
 
+    def onHorizontalHeaderClicked(self, col):
+        self.table.setCurrentRow(0)
+        self.table.setCurrentColumn(col)
+        self._updateStatusBarRowColumn()
+
     def resizeEvent(self, event):
         """Control the resize event"""
         if self._triggeredResize:
@@ -1298,8 +1337,8 @@ class QTMetadataViewer(QMainWindow):
         """Mark as selected all the table"""
         selection = QTableWidgetSelectionRange(0, 0, self._rowsCount - 1,
                                                self.table.columnCount() - 1)
-        self.table.setRangeSelected(selection, True)
         self.selectedRange(1, self._rowsCount)
+        self.table.setRangeSelected(selection, True)
 
     def selectFromHere(self):
         """Mark as selected a range from the current row to the last row in
@@ -1307,8 +1346,8 @@ class QTMetadataViewer(QMainWindow):
         selection = QTableWidgetSelectionRange(self.table.getCurrentRow(), 0,
                                                self._rowsCount - 1,
                                                self.table.columnCount() - 1)
-        self.table.setRangeSelected(selection, True)
         self.selectedRange(self.table.getCurrentRow() + 1, self._rowsCount)
+        self.table.setRangeSelected(selection, True)
 
     def selectToHere(self):
         """Mark as selected a range from the first row to the current row in
@@ -1316,8 +1355,8 @@ class QTMetadataViewer(QMainWindow):
         selection = QTableWidgetSelectionRange(0, 0,
                                                self.table.getCurrentRow(),
                                                self.table.columnCount() - 1)
+        self.selectedRange(1, self.table.getCurrentRow() + 1)
         self.table.setRangeSelected(selection, True)
-        self.selectedRange(0, self.table.getCurrentRow())
 
     def selectedRange(self, top, bottom):
         """Mark as selected a range of rows starting from 'top' to 'bottom' """
@@ -1325,17 +1364,15 @@ class QTMetadataViewer(QMainWindow):
             topAux = top
             top = bottom
             startRow = top
-            numberOfRows = abs(top - topAux)
+            numberOfRows = abs(top - topAux) - 1
         else:
             startRow = top
             numberOfRows = bottom - top
 
-        selectedRange = self.objectManager.getSelectedRangeRowsIds(self.table.getTableName(),
+        self.objectManager.getSelectedRangeRowsIds(self.table.getTableName(),
                                                                    startRow, numberOfRows,
                                                                    self.table.getColumns()[self.table.getSortedColumn()].getName(),
                                                                    self.table._orderAsc)
-        for i in selectedRange:
-            self.table.getTable().getSelection().addRowSelected(i, remove=False)
         self._updateStatusBarSelectedRows()
 
     def _tableCellClicked(self, row, column):

@@ -25,15 +25,34 @@
 # *
 # **************************************************************************
 import logging
+import subprocess
+
 logger = logging.getLogger()
 
 import os
 import csv
 from functools import lru_cache
 from openpyxl import Workbook
+from abc import abstractmethod
 
 from metadataviewer.dao import StarFile, SqliteFile
 from metadataviewer.model import Table, Page
+
+
+class IGUI:
+
+    @abstractmethod
+    def writeMessage(self, msg):
+        """Write a non modal message like a status bar message"""
+        pass
+
+    def getSaveFileName(self):
+        """Get a path to save a fileName"""
+        pass
+
+    def getSubsetName(self, typeOfObjects, elementsCount):
+        """Get a name for the subset created by a action"""
+        pass
 
 
 class ObjectManager:
@@ -48,6 +67,13 @@ class ObjectManager:
         self._registeredRenderers = []
         self.__registerterOwnDAOs()
         self._dao = None
+        self._gui: IGUI
+
+    def getGui(self):
+        return self._gui
+
+    def setGui(self, gui: IGUI):
+        self._gui = gui
 
     def __registerterOwnDAOs(self):
         """Register the own DAOs"""
@@ -96,7 +122,7 @@ class ObjectManager:
         """Create a table"""
         self._tableName = tableName
         table = Table(tableName)
-        self._dao.fillTable(table)
+        self._dao.fillTable(table, self)
         return table
 
     @lru_cache
@@ -156,7 +182,14 @@ class ObjectManager:
 
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
         """Return a range of rows starting at 'startRow' an amount of 'numberOfRows' """
-        return self._dao.getSelectedRangeRowsIds(tableName, startRow, numberOfRows, column, reverse)
+        table = self.getTable(tableName)
+        self._gui.writeMessage('Retrieving identifiers...')
+        selectedRange = self._dao.getSelectedRangeRowsIds(tableName, startRow,
+                                                          numberOfRows, column,
+                                                          reverse)
+        self._gui.writeMessage('Storing selection...')
+        for i, id in enumerate(selectedRange):
+            table.getSelection().addRowSelected(id, remove=False)
 
     def getTableNames(self):
         """Return the tables names"""
@@ -215,12 +248,12 @@ class ObjectManager:
         except Exception as e:
             logger.error("There was a problem generating the .xlsx file")
 
-    def exportToCSV(self, tableName, filepath):
+    def exportToCSV(self, tableName):
         """Export the table selection to a .csv file"""
         table = self.getTable(tableName)
         selection = table.getSelection().getSelection()
         columns = table.getColumns()
-
+        filepath = self._gui.getSaveFileName()
         if filepath:
             with open(filepath, 'w', newline='') as csv_file:
                 csv_writer = csv.writer(csv_file)

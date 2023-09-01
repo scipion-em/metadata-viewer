@@ -88,10 +88,8 @@ class SqliteFile(IDAO):
         className = firstRow['class_name']
         if tableName.__contains__('_'):
             alias = tableName.split('_')[0] + '_' + className
-            typeObject = REPRESENTATIVE_OBJECT
         else:
             alias = className
-            typeObject = CLASS_OBJECT
         if className not in self._objectsType:
             self._objectsType.append(className)
         return alias
@@ -153,18 +151,18 @@ class SqliteFile(IDAO):
                              "values of these columns.")
                 self._extendedColumn = indexCol, representativeCol
 
-    def generateTableActions(self, table):
+    def generateTableActions(self, table, objectManager):
         """Generate actions for a given table in order to create subsets"""
         alias = table.getAlias()
         if alias.startswith('Class') and len(alias.split('_')) == 1:
-            table.addAction(self._objectsType[0], lambda: self.createSubsetCallback(table, self._objectsType[0]))
-            table.addAction(self._objectsType[1], lambda: self.createSubsetCallback(table, self._objectsType[1]))
-            table.addAction('SetOfAverage', lambda: self.createSubsetCallback(table, 'SetOfAverage'))
+            table.addAction(self._objectsType[0], lambda: self.createSubsetCallback(table, self._objectsType[0], objectManager))
+            table.addAction(self._objectsType[1], lambda: self.createSubsetCallback(table, self._objectsType[1], objectManager))
+            table.addAction('SetOfAverage', lambda: self.createSubsetCallback(table, 'SetOfAverage', objectManager))
         else:
             objectType = alias.split('_')[1] if len(alias.split('_')) > 1 else alias
-            table.addAction(objectType, lambda: self.createSubsetCallback(table, objectType))
+            table.addAction(objectType, lambda: self.createSubsetCallback(table, objectType, objectManager))
 
-    def fillTable(self, table):
+    def fillTable(self, table, objectManager):
         """Create the table structure (columns) and set the table alias"""
         tableName = table.getName()
         colNames = self._labels[tableName]
@@ -178,7 +176,7 @@ class SqliteFile(IDAO):
             values.insert(self._extendedColumn[1] + 1, str(values[self._extendedColumn[0]]) + '@' + str(values[self._extendedColumn[1]]))
         table.createColumns(colNames, values)
         table.setAlias(self._aliases[tableName])
-        self.generateTableActions(table)
+        self.generateTableActions(table, objectManager)
 
     def fillPage(self, page, actualColumn=0, orderAsc=True):
         """
@@ -310,11 +308,17 @@ class SqliteFile(IDAO):
         the column that we need to show"""
         return self._tableWithAdditionalInfo, ADITIONAL_INFO_DISPLAY_COLUMN_LIST
 
-    def createSubsetCallback(self, table: Table, objectType: str):
-        """Create a """
-        path = '/tmp/ids.txt'
-        self.writeSelection(table, path)
-        #
+    def createSubsetCallback(self, table: Table, objectType: str, objectManager):
+        """Create a subset"""
+        selection = table.getSelection().getSelection()
+        tableName = table.getName()
+        elementsCount = len(selection)
+        if not elementsCount:
+            elementsCount = self._tableCount[tableName]
+        path = objectManager.getGui().getSubsetName(objectType, elementsCount)
+        if path:
+            self.writeSelection(table, path)
+            #
 
     def writeSelection(self, table: Table, path):
         """ Create a file with the selected rows ids"""

@@ -132,13 +132,14 @@ class Selection:
         self._selection.clear()
         self._count = 0
 
+
 class Table:
     """Class that represent a table"""
     def __init__(self, name, columns=None):
         self._name = name
         self._alias = None
         self._columns = columns or list()
-        self._sortingColumnIndex = -1
+        self._sortingColumnIndex = 0
         self._sortingAsc = True
         self._sortingChanged = False
         self._actions = []
