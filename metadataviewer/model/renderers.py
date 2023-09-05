@@ -155,7 +155,9 @@ class MRCImageReader(ImageReader):
             fileName = filePath[-1]
             mrcImg = mrcfile.open(fileName, permissive=True)
             if mrcImg.is_volume():
-                imfloat = mrcImg.data[0, :, :]
+                dim = mrcImg.data.shape
+                x = int(dim[0] /2)
+                imfloat = mrcImg.data[x,  :,  :]
             else:
                 imfloat = mrcImg.data
 

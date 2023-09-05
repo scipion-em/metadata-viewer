@@ -1,3 +1,2 @@
 pyqt5==5.15.9
 mrcfile==1.4.3
-openpyxl==3.1.2

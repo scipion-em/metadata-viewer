@@ -527,7 +527,6 @@ class GalleryView(QTableWidget):
         self._columnsCount = None
         self._rowsCount = None
         self.objectManager = objectManager
-        self.objectManager.selectDAO()
         self.tableNames = self.objectManager.getTableNames()
         self._table = self.objectManager.getTable(self.tableNames[0])
         self._tableName = self._table.getName()
@@ -742,12 +741,9 @@ class ImageViewer(QDialog):
 
 class QTMetadataViewer(QMainWindow, IGUI):
     """Qt Metadata viewer window"""
-    def __init__(self, args):
-        super().__init__()
-        self._fileName = os.path.abspath(args.fileName)
-        self.objectManager = ObjectManager(args.fileName)
-        self.objectManager.selectDAO()
-        self.objectManager.setGui(self)
+    def __init__(self, **kwargs):
+        QMainWindow.__init__(self)
+        IGUI.__init__(self, **kwargs)
         self.tableNames = self.objectManager.getTableNames()
         self.tableName = self.tableNames[0]
         self.tableAliases = self.objectManager.getTableAliases()
@@ -755,15 +751,15 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self._triggeredResize = False
         self._triggeredGotoItem = True
         self._rowsCount = self.objectManager.getTableRowCount(self.tableName)
-        self.setWindowTitle("Metadata: " + os.path.basename(args.fileName) + " (%s items)" % self._rowsCount)
+        self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
         self.setGeometry(100, 100, 1000, 600)
         self.center()
         self.setMinimumSize(800, 400)
-        self._tableView = args.tableview
-        self._galleryView = args.galleryview
-        self._darktheme = args.darktheme
-        if self._darktheme:
-            self.setDarkTheme()
+        self._tableView = True
+        self._galleryView = False
+        # self._darktheme = args.darktheme
+        # if self._darktheme:
+        #     self.setDarkTheme()
         self.setWindowIcon(QIcon(getImage(TABLE_VIEW)))
 
         # Table view
@@ -932,7 +928,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         # Close button
         closeButton = QPushButton(CLOSE_BUTTON_TEXT)
         closeButton.setIcon(QIcon(getImage(ERROR)))
-        closeButton.clicked.connect(sys.exit)
+        closeButton.clicked.connect(self.close)
         self.statusBar().addPermanentWidget(closeButton)
         self.permanentWidgets.append(closeButton)
 

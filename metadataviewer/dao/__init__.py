@@ -25,6 +25,4 @@
 # *
 # **************************************************************************
 
-from .starfile import StarFile
-from .sqlite import SqliteFile
 

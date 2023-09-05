@@ -25,41 +25,50 @@
 # *
 # **************************************************************************
 import logging
-import subprocess
+import sys
 
 logger = logging.getLogger()
 
 import os
 import csv
 from functools import lru_cache
-from openpyxl import Workbook
 from abc import abstractmethod
 
-from metadataviewer.dao import StarFile, SqliteFile
+# from metadataviewer.dao import StarFile, SqliteFile
 from metadataviewer.model import Table, Page
 
 
 class IGUI:
+
+    def __init__(self, fileName=None, objectManager=None):
+        self._fileName = fileName
+        self.objectManager = objectManager
 
     @abstractmethod
     def writeMessage(self, msg):
         """Write a non modal message like a status bar message"""
         pass
 
+    @abstractmethod
     def getSaveFileName(self):
         """Get a path to save a fileName"""
         pass
 
+    @abstractmethod
     def getSubsetName(self, typeOfObjects, elementsCount):
         """Get a name for the subset created by a action"""
+        pass
+
+    @abstractmethod
+    def show(self):
         pass
 
 
 class ObjectManager:
     """Class that represent the object manager. This class maintains
     communication with the GUIs and the DAOs. """
-    def __init__(self, fileName: str):
-        self._fileName = fileName
+    def __init__(self):
+        self._fileName = None
         self._tables = {}
         self._pageNumber = 1
         self._pageSize = 50
@@ -67,7 +76,19 @@ class ObjectManager:
         self._registeredRenderers = []
         self.__registerterOwnDAOs()
         self._dao = None
-        self._gui: IGUI
+        self._gui: IGUI = None
+
+    def open(self, fileName):
+        self._fileName = fileName
+        self.selectDAO()
+        if not self._gui:
+            from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
+            from PyQt5.QtWidgets import QApplication
+            app = QApplication(sys.argv)
+            self._gui = QTMetadataViewer(fileName=self._fileName,
+                                         objectManager=self)
+            self._gui.show()
+            app.exec_()
 
     def getGui(self):
         return self._gui
@@ -77,8 +98,9 @@ class ObjectManager:
 
     def __registerterOwnDAOs(self):
         """Register the own DAOs"""
-        self.registerDAO(StarFile)
-        self.registerDAO(SqliteFile)
+        # self.registerDAO(StarFile)
+        # self.registerDAO(SqliteFile)
+        pass
 
     def getRegisteredDAO(self):
         """return the registered DAOs"""
@@ -221,32 +243,6 @@ class ObjectManager:
 
     def getTableWithAdditionalInfo(self):
         return self._dao.getTableWithAdditionalInfo()
-
-    def exportToExcel(self, tableName, filepath):
-        """Export the table selection to a .xlsx file"""
-        table = self.getTable(tableName)
-        wb = Workbook()
-        ws = wb.active
-        selection = table.getSelection().getSelection()
-        columns = table.getColumns()
-        columnsCount = len(columns)
-
-        # Create the columns header
-        for col, column in enumerate(columns):
-            ws.cell(row=1, column=col + 1, value=column.getName())
-
-        # Fill the .xlsx table
-        for row, rowId in enumerate(selection):
-            for col in range(columnsCount):
-                rowValues = self.getCurrentRow(table, rowId-1).getValues()
-                item = str(rowValues[col])
-                if item is not None:
-                    ws.cell(row=row + 2, column=col + 1, value=item)
-        try:
-            wb.save(filepath)
-            logger.info('The .xlsx file was generated successfully')
-        except Exception as e:
-            logger.error("There was a problem generating the .xlsx file")
 
     def exportToCSV(self, tableName):
         """Export the table selection to a .csv file"""
