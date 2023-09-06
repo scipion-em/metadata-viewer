@@ -114,7 +114,6 @@ class ColumnPropertiesTable(QDialog):
             if self._loadFirstTime and isImageColumn:
                 self.renderCheckBoxList[i].setChecked(True)
                 self.visibleCheckBoxList[i].setChecked(True)
-                self.setLoadFirstTime(False)
             elif not isImageColumn:
                 self.renderCheckBoxList[i].setEnabled(False)
 
@@ -457,12 +456,14 @@ class TableView(QTableWidget):
                                                                  0, i + currentRowIndex,
                                                                  self.columnCount() - 1), True)
             for col in range(currenctColumnIndex, endColumn):
-                if self._columns[col].getRenderer().renderType() != Image:
-                    item = self._columns[col].getRenderer().render(values[col])
+                column = self._columns[col]
+                renderer = column.getRenderer()
+                if renderer.renderType() != Image:
+                    item = renderer.render(values[col])
                     widget = CustomWidget(item, row.getId())
                 else:
                     if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
-                        item = self._columns[col].getRenderer().render(values[col])
+                        item = renderer.render(values[col])
                         if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                             text = self.composeAdditionaInfo(row)
                             widget = CustomWidget(item, row.getId(), addText=True, text=text)
@@ -640,7 +641,7 @@ class GalleryView(QTableWidget):
         return visibleRows
 
     def _addImages(self, rows, currentValue, visibleRows, seekFirstImage):
-        """Add images to the gallary"""
+        """Add images to the gallery"""
         renderer = self.getRenderer()
         rowsValues = [row.getValues()[self._columnWithImages] for row in rows]
         countImages = 0

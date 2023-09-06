@@ -26,8 +26,6 @@
 # **************************************************************************
 import logging
 
-from .constants import EXTENDED_COLUMN_NAME, ENABLED_COLUMN
-
 logger = logging.getLogger()
 
 from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, BoolRenderer,
@@ -213,13 +211,14 @@ class Table:
                        the data renderer
         """
         for i in range(len(columns)):
-            column = Column(columns[i], _guessRender(values[i]))
-            if column.getName() == ENABLED_COLUMN:
-                column.setRenderer(BoolRenderer())
-                column.setIsSorteable(False)
-            if column.getName() == EXTENDED_COLUMN_NAME:
-                column.setIsSorteable(False)
+            column = Column(columns[i], self.guessRender(values[i]))
             self.addColumn(column)
+
+    @classmethod
+    def guessRenderer(cls, value):
+        """ Guess the renderer based on a value. This may not be accurate. You can always specify the renderer in the DAO."""
+        return _guessRender(value)
+
 
     def clear(self):
         """ Remove all columns """

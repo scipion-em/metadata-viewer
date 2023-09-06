@@ -28,8 +28,6 @@
 import sys
 import argparse
 
-from metadataviewer.dao.sqlite_dao import SqliteFile
-from metadataviewer.dao.star_dao import StarFile
 from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
 
 __version__ = 1.0
@@ -55,8 +53,6 @@ def main():
     args = parser.parse_args(argsList)
     if args.viewer == QT_VIEWER:
         objectManager = ObjectManager()
-        objectManager.registerDAO(SqliteFile)
-        objectManager.registerDAO(StarFile)
         objectManager.open(sys.argv[1])
 
 
