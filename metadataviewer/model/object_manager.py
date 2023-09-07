@@ -34,8 +34,7 @@ import csv
 from functools import lru_cache
 from abc import abstractmethod
 
-# from metadataviewer.dao import StarFile, SqliteFile
-from metadataviewer.model import Table, Page
+from metadataviewer.model import Table, Page, ImageRenderer
 
 
 class IGUI:
@@ -67,14 +66,16 @@ class IGUI:
 class ObjectManager:
     """Class that represent the object manager. This class maintains
     communication with the GUIs and the DAOs. """
+    _DAORegistry = []
+
     def __init__(self):
         self._fileName = None
         self._tables = {}
         self._pageNumber = 1
         self._pageSize = 50
-        self._registeredDAO = []
+
         self._registeredRenderers = []
-        self.__registerterOwnDAOs()
+        self.__registerOwnDAOs()
         self._dao = None
         self._gui: IGUI = None
 
@@ -96,31 +97,35 @@ class ObjectManager:
     def setGui(self, gui: IGUI):
         self._gui = gui
 
-    def __registerterOwnDAOs(self):
+    def __registerOwnDAOs(self):
         """Register the own DAOs"""
-        # self.registerDAO(StarFile)
-        # self.registerDAO(SqliteFile)
         pass
 
-    def getRegisteredDAO(self):
+    @classmethod
+    def getDAORegistry(cls):
         """return the registered DAOs"""
-        return self._registeredDAO
+        return cls._DAORegistry
 
-    def registerDAO(self, dao):
+    @classmethod
+    def registerDAO(cls, dao):
         """Register a given DAO"""
-        self._registeredDAO.append(dao)
+        cls._DAORegistry.append(dao)
+
+    @classmethod
+    def registerReader(cls, reader):
+        """Register a given DAO"""
+        ImageRenderer.registerImageReader(reader)
 
     def selectDAO(self):
         """Select a DAO taking into account a file extension"""
-        for dao in self._registeredDAO:
-            instance = dao(self._fileName)
+        for dao in self._DAORegistry:
             ext = os.path.basename(self._fileName).split('.')[-1]
-            if ext in instance.getCompatibleFileTypes():
-                 self._dao = instance
+            if ext in dao.getCompatibleFileTypes():
+                 self._dao = dao(self._fileName)
                  break
 
         if self._dao is None:
-            logger.error("There is no DAO registered to handle this type of file.")
+            raise NotImplementedError("There is no DAO registered to handle this type of file: %s" % self._fileName)
 
         return self._dao
 

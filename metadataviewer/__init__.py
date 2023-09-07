@@ -24,37 +24,4 @@
 # *  e-mail address 'scipion@cnb.csic.es'
 # *
 # **************************************************************************
-
-import sys
-import argparse
-
-from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
-
 __version__ = 1.0
-
-from metadataviewer.model import ObjectManager
-
-QT_VIEWER = 'qtviewer'
-
-
-def defineArgs():
-    parser = argparse.ArgumentParser()
-    parser.add_argument("fileName", help="File to be displayed by the dataviewer ")
-    parser.add_argument("--viewer", help="Select a viewer implementation (qtviewer, tkviewer, terminal)", default=QT_VIEWER)
-    parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
-    parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
-    parser.add_argument("--darktheme", help="Load the viewer with a dark theme", action="store_true", default=False)
-    return parser
-
-
-def main():
-    parser = defineArgs()
-    argsList = sys.argv[1:]
-    args = parser.parse_args(argsList)
-    if args.viewer == QT_VIEWER:
-        objectManager = ObjectManager()
-        objectManager.open(sys.argv[1])
-
-
-if __name__ == "__main__":
-    main()
