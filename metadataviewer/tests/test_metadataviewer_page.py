@@ -27,7 +27,7 @@
 
 import unittest
 
-from metadataviewer.model import Page, Column, Table
+from metadataviewer.model import Column, Table, Page
 
 
 class TestPage(unittest.TestCase):

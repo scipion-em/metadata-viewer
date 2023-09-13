@@ -113,7 +113,6 @@ class ColumnPropertiesTable(QDialog):
             isImageColumn = self.columns[i].getRenderer().renderType() == Image
             if self._loadFirstTime and isImageColumn:
                 self.renderCheckBoxList[i].setChecked(True)
-                self.visibleCheckBoxList[i].setChecked(True)
             elif not isImageColumn:
                 self.renderCheckBoxList[i].setEnabled(False)
 
@@ -148,7 +147,7 @@ class ColumnPropertiesTable(QDialog):
         self.editCheckBoxList = []
         for i in range(self.numRow):
             visibleCheckBox = QCheckBox()
-            visibleCheckBox.setChecked(True)
+            visibleCheckBox.setChecked(columns[i].isVisible())
             renderCheckBox = QCheckBox()
             editCheckBox = QCheckBox()
             editCheckBox.setEnabled(False)

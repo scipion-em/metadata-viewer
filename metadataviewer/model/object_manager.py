@@ -70,6 +70,7 @@ class ObjectManager:
 
     def __init__(self):
         self._fileName = None
+        self._visibleLabels = []
         self._tables = {}
         self._pageNumber = 1
         self._pageSize = 50
@@ -79,8 +80,8 @@ class ObjectManager:
         self._dao = None
         self._gui: IGUI = None
 
-    def open(self, fileName):
-        self._fileName = fileName
+    def open(self, args):
+        self._fileName = args.fileName
         self.selectDAO()
         if not self._gui:
             from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
@@ -93,6 +94,17 @@ class ObjectManager:
 
     def getGui(self):
         return self._gui
+
+    def getVisibleLabels(self):
+        return self._visibleLabels
+
+    def setVisibleLabels(self, visibleLabels):
+        self._visibleLabels = visibleLabels
+
+    def isLabelVisible(self, label):
+        if len(self._visibleLabels) > 0:
+            return label in self._visibleLabels
+        return True
 
     def setGui(self, gui: IGUI):
         self._gui = gui

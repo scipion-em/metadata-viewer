@@ -55,13 +55,17 @@ setup(
     url='https://github.com/fonsecareyna82/metadata_viewer',  # Optional
     author='Yunior C. Fonseca-Reyna, Pablo Conesa, Jorge Jiménez',  # Optional
     author_email='cfonseca@cnb.csic.es, pconesa@cnb.csic.es, jjimenez@cnb.csic.es',  # Optional
-    classifiers=[  # Optional
+    classifiers=[
         'Development Status :: 4 - Beta',
         'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
         'Programming Language :: Python :: 3.8'
     ],
     keywords='metadata-viewer',  # Optional
     packages=find_packages(),
+    include_package_data=True,
+    package_data={
+        'metadataviewer': ['gui/resources/*'],
+    },
     install_requires=[requirements],
     project_urls={  # Optional
         'Bug Reports': 'https://github.com/fonsecareyna82/metadata_viewer/issues',

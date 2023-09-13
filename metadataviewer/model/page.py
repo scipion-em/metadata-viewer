@@ -39,6 +39,7 @@ class Column:
         self._alias = None
         self._renderer = renderer or StrRenderer
         self._isSorteable = True
+        self._isVisible = True
 
     def getName(self):
         """Return the column name"""
@@ -67,6 +68,14 @@ class Column:
     def setIsSorteable(self, isSorteable):
         """Set the sorteable parameter"""
         self._isSorteable = isSorteable
+
+    def isVisible(self):
+        """Return if the column is visible"""
+        return self._isVisible
+
+    def setIsVisible(self, isVisible):
+        """Set the visible parameter"""
+        self._isVisible = isVisible
 
     def __str__(self):
         return 'Column: %s (renderer: %s)' % (self._name, self._renderer)

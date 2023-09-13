@@ -26,4 +26,4 @@
 # **************************************************************************
 
 from .test_metadataviewer_page import *
-from .test_metadataviewer_startfile import *
+from .test_metadataviewer_object_manager import *

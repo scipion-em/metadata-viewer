@@ -4,8 +4,8 @@
 # Include the license file
  include LICENSE
 
-# Include conf file
- include cryosparc2/protocols.conf
+# Include images files
+ include gui/resources/*
 
 # Include the requirement file
 include requirements.txt

@@ -28,8 +28,11 @@ import importlib
 import sys
 import argparse
 
+import logging
+logging.basicConfig(level=logging.INFO)
 
-from metadataviewer.model import ObjectManager
+
+logger = logging.getLogger(__name__)
 
 
 def defineArgs():
@@ -38,7 +41,9 @@ def defineArgs():
     parser.add_argument("--tableview", help="Displays the file in table mode", action="store_true", default=False)
     parser.add_argument("--galleryview", help="Displays the file in gallery mode", action="store_true", default=False)
     parser.add_argument("--darktheme", help="Load the viewer with a dark theme", action="store_true", default=False)
-    parser.add_argument("--extensionpath", help="path to a module to load to extend the viewer", type=str, default=None)
+    parser.add_argument("--extensionpath", help="Path to a module to load to extend the viewer", type=str, default=None)
+    parser.add_argument("--visiblelabels", help="List of column names that will be visible", type=str, default=None)
+
 
     return parser
 
@@ -48,16 +53,23 @@ def main():
     argsList = sys.argv[1:]
     args = parser.parse_args(argsList)
 
+    logger.info('Calling metadataviewer from command line')
+    from metadataviewer.model import ObjectManager
+
     if args.extensionpath is not None:
         extensiopath = args.extensionpath
-        print("Extending from %s" % extensiopath)
+        logger.info("Extending from %s" % extensiopath)
         spec = importlib.util.spec_from_file_location("mdvextension", extensiopath)
         extension_module = importlib.util.module_from_spec(spec)
         spec.loader.exec_module(extension_module)
         extension_module.extendMDViewer(ObjectManager)
 
     objectManager = ObjectManager()
-    objectManager.open(args.fileName)
+    if args.visiblelabels:
+        logger.info("Visible labels: %s" % args.visiblelabels)
+        objectManager.setVisibleLabels(args.visiblelabels.split(' '))
+
+    objectManager.open(args)
 
 
 if __name__ == "__main__":
