@@ -71,6 +71,7 @@ class ObjectManager:
     def __init__(self):
         self._fileName = None
         self._visibleLabels = []
+        self._columnsOrder = []
         self._tables = {}
         self._pageNumber = 1
         self._pageSize = 50
@@ -100,6 +101,12 @@ class ObjectManager:
 
     def setVisibleLabels(self, visibleLabels):
         self._visibleLabels = visibleLabels
+
+    def getColumnsOrder(self):
+        return self._columnsOrder
+
+    def setColumnsOrder(self, columnsOrder):
+        self._columnsOrder = columnsOrder
 
     def isLabelVisible(self, label):
         if len(self._visibleLabels) > 0:
@@ -241,11 +248,25 @@ class ObjectManager:
     def getTableRowCount(self, tableName: str):
         return self._dao.getTableRowCount(tableName)
 
+    def setColumnsIndex(self, table):
+        index = 0
+        for columnOrdered in self.getColumnsOrder():
+            for column in table.getColumns():
+                if column.getName() == columnOrdered:
+                    column.setIndex(index)
+                    index += 1
+                    break
+        for column in table.getColumns():
+            if column.getIndex() == -1:
+                column.setIndex(index)
+                index += 1
+
     def getTable(self, tableName: str):
         """Returns a table if it is stored, otherwise a new table is
            created. """
         if tableName not in self._tables:
             table = self.createTable(tableName)
+            self.setColumnsIndex(table)
             self._tables[tableName] = table
         else:
             table = self._tables[tableName]

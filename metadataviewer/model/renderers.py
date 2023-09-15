@@ -51,7 +51,7 @@ class IRenderer:
             return self._render(value)
         except Exception as e:
             logger.info("It is not possible to assign a renderer to this "
-                         "value. It will be rendered as a string: %s" % e)
+                        "value. It will be rendered as a string: %s" % e)
             return str(value)
 
     @abstractmethod
@@ -182,5 +182,6 @@ class ImageRenderer(IRenderer):
 
     def renderType(self):
         return Image
+
 
 ImageRenderer.registerImageReader(PILImageReader)

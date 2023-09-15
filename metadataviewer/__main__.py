@@ -43,6 +43,7 @@ def defineArgs():
     parser.add_argument("--darktheme", help="Load the viewer with a dark theme", action="store_true", default=False)
     parser.add_argument("--extensionpath", help="Path to a module to load to extend the viewer", type=str, default=None)
     parser.add_argument("--visiblelabels", help="List of column names that will be visible", type=str, default=None)
+    parser.add_argument("--orderlabels", help="List of column names that will be used to stablished a columns order", type=str, default=None)
 
 
     return parser
@@ -68,6 +69,9 @@ def main():
     if args.visiblelabels:
         logger.info("Visible labels: %s" % args.visiblelabels)
         objectManager.setVisibleLabels(args.visiblelabels.split(' '))
+    if args.orderlabels:
+        logger.info("Order labels: %s" % args.orderlabels)
+        objectManager.setColumnsOrder(args.orderlabels.split(' '))
 
     objectManager.open(args)
 
