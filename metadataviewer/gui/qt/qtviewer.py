@@ -106,23 +106,25 @@ class ColumnPropertiesTable(QDialog):
 
         for i in range(self.numRow):
             # checking visible column
-            if not self.columns[i].getName() in tableHeaderList:
-               self.visibleCheckBoxList[i].setChecked(False)
+            column = self.columns[i]
+            if not column.getName() in tableHeaderList:
+               self.visibleCheckBoxList[column.getIndex()].setChecked(False)
 
             # checking render column
-            isImageColumn = self.columns[i].getRenderer().renderType() == Image
+            isImageColumn = column.getRenderer().renderType() == Image
             if self._loadFirstTime and isImageColumn:
-                self.renderCheckBoxList[i].setChecked(True)
+                self.renderCheckBoxList[column.getIndex()].setChecked(True)
             elif not isImageColumn:
-                self.renderCheckBoxList[i].setEnabled(False)
+                self.renderCheckBoxList[column.getIndex()].setEnabled(False)
 
-            visibleCheckbox = self._createCellWidget(self.visibleCheckBoxList[i])
-            renderCheckbox = self._createCellWidget(self.renderCheckBoxList[i])
-            editCheckbox = self._createCellWidget(self.editCheckBoxList[i])
-            self.tableWidget.setCellWidget(i, 0, QLabel('_' + self.columns[i].getName()))
-            self.tableWidget.setCellWidget(i, 1, visibleCheckbox)
-            self.tableWidget.setCellWidget(i, 2, renderCheckbox)
-            self.tableWidget.setCellWidget(i, 3, editCheckbox)
+            visibleCheckbox = self._createCellWidget(self.visibleCheckBoxList[column.getIndex()])
+            renderCheckbox = self._createCellWidget(self.renderCheckBoxList[column.getIndex()])
+            editCheckbox = self._createCellWidget(self.editCheckBoxList[column.getIndex()])
+
+            self.tableWidget.setCellWidget(column.getIndex(), 0, QLabel('_' + column.getName()))
+            self.tableWidget.setCellWidget(column.getIndex(), 1, visibleCheckbox)
+            self.tableWidget.setCellWidget(column.getIndex(), 2, renderCheckbox)
+            self.tableWidget.setCellWidget(column.getIndex(), 3, editCheckbox)
         self.tableWidget.move(0, 0)
         self.tableWidget.resizeColumnsToContents()
         self.tableWidget.resizeRowsToContents()
@@ -145,15 +147,22 @@ class ColumnPropertiesTable(QDialog):
         self.visibleCheckBoxList = []
         self.renderCheckBoxList = []
         self.editCheckBoxList = []
+
+        for i in range(self.numRow):
+            self.visibleCheckBoxList.append(i)
+            self.renderCheckBoxList.append(i)
+            self.editCheckBoxList.append(i)
+
         for i in range(self.numRow):
             visibleCheckBox = QCheckBox()
             visibleCheckBox.setChecked(columns[i].isVisible())
             renderCheckBox = QCheckBox()
             editCheckBox = QCheckBox()
             editCheckBox.setEnabled(False)
-            self.visibleCheckBoxList.append(visibleCheckBox)
-            self.renderCheckBoxList.append(renderCheckBox)
-            self.editCheckBoxList.append(editCheckBox)
+
+            self.visibleCheckBoxList[columns[i].getIndex()] = visibleCheckBox
+            self.renderCheckBoxList[columns[i].getIndex()] = renderCheckBox
+            self.editCheckBoxList[columns[i].getIndex()] = editCheckBox
         self.InsertRows()
 
     def openTableDialog(self):
@@ -191,7 +200,8 @@ class ColumnPropertiesTable(QDialog):
 
     def renderColums(self):
         """Method to render(or not) the selected columns"""
-        self._table.setRowHeight(0, 10)
+        self._table.setRowHeight(0, DEFAULT_ROW_HEIGHT)
+        self._table._setRowHeight(DEFAULT_ROW_HEIGHT)
         self._table._fillTable()
 
     def accept(self):
@@ -199,6 +209,7 @@ class ColumnPropertiesTable(QDialog):
         self.hideColumns()
         self.renderColums()
         self.editColums()
+        self.setLoadFirstTime(False)
         self.close()
 
 
@@ -409,7 +420,7 @@ class TableView(QTableWidget):
         for i, column in enumerate(self._columns):
             item = QTableWidgetItem(str(column.getName()))
             item.setTextAlignment(Qt.AlignCenter)
-            self.setHorizontalHeaderItem(i, item)
+            self.setHorizontalHeaderItem(self._columns[i].getIndex(), item)
 
     def _fillTable(self):
         """Fill the table"""
@@ -417,8 +428,6 @@ class TableView(QTableWidget):
         self._rowsCount = self.objectManager.getTableRowCount(self._tableName)
         self.setColumnCount(len(columns))
         self.setRowCount(self._rowsCount)
-        if self._columnWithImages:
-            self._rowHeight = self.getOldZoom()
         self._loadRows()
 
     def _calculateVisibleColumns(self):
@@ -461,7 +470,7 @@ class TableView(QTableWidget):
                     item = renderer.render(values[col])
                     widget = CustomWidget(item, row.getId())
                 else:
-                    if self.propertiesTableDialog.renderCheckBoxList[col].isChecked():
+                    if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
                         item = renderer.render(values[col])
                         if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                             text = self.composeAdditionaInfo(row)
@@ -472,9 +481,12 @@ class TableView(QTableWidget):
                         item = values[col]
                         widget = CustomWidget(item, row.getId())
 
-                self.setCellWidget(i + currentRowIndex, col, widget)
+                if widget.sizeHint().height() > self._rowHeight:
+                    self._rowHeight = widget.sizeHint().height()
+
+                self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
                 self.resizeColumnToContents(col)
-                self.setColumnWidth(col, self.columnWidth(col) + 5)
+                # self.setColumnWidth(column.getIndex(), widget.sizeHint().width() + 5)
             self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
 
     def composeAdditionaInfo(self, rowValues):
@@ -636,7 +648,7 @@ class GalleryView(QTableWidget):
     def _calculateVisibleRows(self):
         """Method that calculate how many rows are visible"""
         viewportHeight = self.parent().height() if self.parent() else self.viewport().height()
-        visibleRows = viewportHeight // self._rowHeight + 1
+        visibleRows = viewportHeight // self.getOldZoom() + 1
         return visibleRows
 
     def _addImages(self, rows, currentValue, visibleRows, seekFirstImage):

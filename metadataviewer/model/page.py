@@ -40,10 +40,20 @@ class Column:
         self._renderer = renderer or StrRenderer
         self._isSorteable = True
         self._isVisible = True
+        self._index = -1
+
+    def getIndex(self):
+        return self._index
+
+    def setIndex(self, index):
+        self._index = index
 
     def getName(self):
         """Return the column name"""
         return self._name
+
+    def setName(self, name):
+        self._name = name
 
     def getAlias(self):
         """Return the column alias"""
@@ -227,7 +237,6 @@ class Table:
     def guessRenderer(cls, value):
         """ Guess the renderer based on a value. This may not be accurate. You can always specify the renderer in the DAO."""
         return _guessRender(value)
-
 
     def clear(self):
         """ Remove all columns """
