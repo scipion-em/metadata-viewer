@@ -37,7 +37,8 @@ import sys
 from PIL import Image
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QItemSelectionModel, QCoreApplication
-from PyQt5.QtGui import QIcon, QKeySequence, QPixmap, QPalette, QColor
+from PyQt5.QtGui import (QIcon, QKeySequence, QPixmap, QPalette, QColor,
+                         QFontMetrics)
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
@@ -47,7 +48,7 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QTableWidgetSelectionRange, QFrame, QDesktopWidget,
                              QFileDialog, QLineEdit, QGridLayout)
 
-from metadataviewer.model.object_manager import ObjectManager, IGUI
+from metadataviewer.model.object_manager import IGUI
 from .constants import *
 from metadataviewer.gui import getImage
 
@@ -183,6 +184,7 @@ class ColumnPropertiesTable(QDialog):
             self._table.setColumnHidden(column, display)
 
     def hideColumn(self, column):
+        """Hide a given column in the table"""
         self.visibleCheckBoxList[column].setChecked(False)
         self._table.setColumnHidden(column, True)
 
@@ -264,10 +266,27 @@ class CustomWidget(QWidget):
 
         elif isinstance(data, numpy.ndarray):  # The data is a Matrix
             self._type = numpy.ndarray
-            matrix = str(data).split('],')
-            for i, row in enumerate(matrix):
-                label = QLabel(row + '],') if i < len(matrix)-1 else QLabel(row)
-                self._layout.addWidget(label, alignment=Qt.AlignJustify)
+            tableArray = QTableWidget()
+            numRows, numCols = data.shape
+            tableArray.setRowCount(numRows)
+            tableArray.setColumnCount(numCols)
+            tableArray.horizontalHeader().hide()
+            tableArray.verticalHeader().hide()
+            tableArray.setEditTriggers(QTableWidget.NoEditTriggers)
+            tableArray.setShowGrid(False)
+            tableArray.setStyleSheet("QTableWidget { border: none; } "
+                                     "QTableWidget::item { border: none; }")
+            tableArray.setSelectionMode(QAbstractItemView.NoSelection)
+
+            tableArray.setMaximumHeight(100)
+            for i in range(numRows):
+                for j in range(numCols):
+                    item = QTableWidgetItem(str(data[i, j]))
+                    tableArray.setItem(i, j, item)
+                    tableArray.item(i, j).setTextAlignment(Qt.AlignRight)
+            tableArray.resizeColumnsToContents()
+            tableArray.resizeRowsToContents()
+            self._layout.addWidget(tableArray, alignment=Qt.AlignCenter | Qt.AlignCenter)
 
         else:  # Assuming the data is a file path to an image
             try:
@@ -289,18 +308,23 @@ class CustomWidget(QWidget):
         self.setLayout(self._layout)
 
     def widgetType(self):
+        """Return the type of the widget content"""
         return self._type
 
-    def widgetContent(self):
+    def getWidgetContent(self):
+        """Return the widget content"""
         return self._label
 
     def getData(self):
+        """Return the content data"""
         return self._data
 
     def getImagePath(self):
+        """Return the image path"""
         return self._imagePath
 
     def getId(self):
+        """Return the widget id"""
         return self._id
 
 
@@ -369,9 +393,11 @@ class TableView(QTableWidget):
         self._oldzoom = value
 
     def getRowHeight(self):
+        """Return the row height"""
         return self._rowHeight
 
     def _setRowHeight(self, rowHeight):
+        """Set the rowHeight"""
         self._rowHeight = rowHeight
 
     def setTableName(self, tableName):
@@ -445,7 +471,7 @@ class TableView(QTableWidget):
     def _calculateVisibleRows(self):
         """Method that calculate how many rows are visible"""
         viewportHeight = self.parent().height() if self.parent() else self.viewport().height()
-        rowHeight = self.rowHeight(0) if self.rowHeight(0) else DEFAULT_ROW_HEIGHT  # row height (minumum size in case of the table is empty)
+        rowHeight = self._rowHeight if self._rowHeight else DEFAULT_ROW_HEIGHT  # row height (minumum size in case of the table is empty)
         visibleRows = viewportHeight // rowHeight + 1
         return visibleRows
 
@@ -463,33 +489,50 @@ class TableView(QTableWidget):
                 self.setRangeSelected(QTableWidgetSelectionRange(i + currentRowIndex,
                                                                  0, i + currentRowIndex,
                                                                  self.columnCount() - 1), True)
-            for col in range(currenctColumnIndex, endColumn):
+            for col in range(len(values)):
                 column = self._columns[col]
-                renderer = column.getRenderer()
-                if renderer.renderType() != Image:
-                    item = renderer.render(values[col])
-                    widget = CustomWidget(item, row.getId())
-                else:
-                    if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
+                if self.propertiesTableDialog.visibleCheckBoxList[column.getIndex()]:
+                    renderer = column.getRenderer()
+                    if renderer.renderType() != Image:
                         item = renderer.render(values[col])
-                        if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
-                            text = self.composeAdditionaInfo(row)
-                            widget = CustomWidget(item, row.getId(), addText=True, text=text)
-                        else:
-                            widget = CustomWidget(item, row.getId())
-                    else:
-                        item = values[col]
                         widget = CustomWidget(item, row.getId())
+                    else:
+                        if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
+                            item = renderer.render(values[col])
+                            if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
+                                text = self.composeAdditionaInfo(row)
+                                widget = CustomWidget(item, row.getId(), addText=True, text=text)
+                            else:
+                                widget = CustomWidget(item, row.getId())
+                        else:
+                            item = values[col]
+                            widget = CustomWidget(item, row.getId())
 
-                if widget.sizeHint().height() > self._rowHeight:
-                    self._rowHeight = widget.sizeHint().height()
+                    if widget.sizeHint().height() > self._rowHeight:
+                        self._rowHeight = widget.sizeHint().height()
 
-                self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
-                self.resizeColumnToContents(col)
-                # self.setColumnWidth(column.getIndex(), widget.sizeHint().width() + 5)
+                    width = self.calculateColumnWidth(widget, column.getIndex())
+
+                    self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
+                    self.setColumnWidth(column.getIndex(), width + 5)
             self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
 
+    def calculateColumnWidth(self, widget, index):
+        """Method to calculate the column width taking into account
+        the header """
+        width = widget.sizeHint().width()
+        headerText = self.horizontalHeader().model().headerData(index,
+                                                                Qt.Horizontal)
+        font = self.horizontalHeader().font()
+        fontMetrics = QFontMetrics(font)
+        textWidth = fontMetrics.horizontalAdvance(headerText)
+
+        if textWidth > width:
+            width = textWidth
+        return width + 5
+
     def composeAdditionaInfo(self, rowValues):
+        """Create an additional description to a specific object"""
         text = ''
         columns = self.tableWithAdditionalInfo[1]
         values = rowValues.getValues()
@@ -523,12 +566,15 @@ class TableView(QTableWidget):
         self._currentColumn = column
 
     def setCurrentColumn(self, column):
+        """Update the current column"""
         self._currentColumn = column
 
     def setCurrentRow(self, row):
+        """Update the current row"""
         self._currentRow = row
         
     def getLastSelectedRow(self):
+        """Return the last selected row"""
         return self._lastSelectedRow
 
 
@@ -569,12 +615,15 @@ class GalleryView(QTableWidget):
         return self._currentRow
 
     def getColumnsCount(self):
+        """Get the columns count"""
         return self._columnsCount
 
     def getRowsCount(self):
+        """Get the rows count"""
         return self._rowsCount
 
     def getLastSelectedCell(self):
+        """Get the last selected cell in the gallery"""
         return self._lastSelectedCell
 
     def _createGallery(self, tableName):
@@ -612,9 +661,11 @@ class GalleryView(QTableWidget):
                            """ QTableWidget::item:focus { border: 1.5px dashed blue;} """)
 
     def getTable(self):
+        """Get the table"""
         return self._table
 
     def getRenderer(self):
+        """Get the renderer"""
         return self._renderer
 
     def getOldZoom(self):
@@ -684,6 +735,7 @@ class GalleryView(QTableWidget):
                     break
 
     def composeAdditionaInfo(self, rowValues):
+        """Create an additional description to a specific object"""
         text = ''
         columnsWithInfo = self.tableWithAdditionalInfo[1]
         values = rowValues.getValues()
@@ -709,7 +761,8 @@ class GalleryView(QTableWidget):
            the method that calculates the visible columns """
 
         self.setColumnCount(0)
-        self._columnsCount = self._calculateVisibleColumns() - 1
+        visibleColumns = self._calculateVisibleColumns() - 1
+        self._columnsCount = visibleColumns if visibleColumns > 0 else 1
         self._rowsCount = int(self._rowsCount / self._columnsCount)
         if self._columnsCount > self._tableSize:
             self._columnsCount = self._tableSize
@@ -1338,6 +1391,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         if self._galleryView:
             self.gallery.getRenderer().setSize(zoom)
             self.gallery.setOldZoom(zoom)
+            self.gallery.vScrollBar.setValue(0)
             self.gallery._update()
             self._gotoItem(self.goToItem.value())
 
@@ -1409,23 +1463,23 @@ class QTMetadataViewer(QMainWindow, IGUI):
         """Event that control the gallery when click in a image"""
         columnsCount = self.gallery.getColumnsCount()
         index = row * columnsCount + column + 1
+        if index <= self._rowsCount:
+            modifiers = QApplication.keyboardModifiers()
+            rowId = self.gallery.cellWidget(row, column).getId()
+            if modifiers == Qt.NoModifier:  # Simple click
+                self.gallery.getTable().getSelection().clear()
+                self.gallery.getTable().getSelection().addRowSelected(rowId)
+            elif modifiers == Qt.ControlModifier:  # ctrl+click
+                self.table.getTable().getSelection().addRowSelected(rowId)
+            elif modifiers == Qt.ShiftModifier:  # shift+click
+                self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
 
-        modifiers = QApplication.keyboardModifiers()
-        rowId = self.gallery.cellWidget(row, column).getId()
-        if modifiers == Qt.NoModifier:  # Simple click
-            self.gallery.getTable().getSelection().clear()
-            self.gallery.getTable().getSelection().addRowSelected(rowId)
-        elif modifiers == Qt.ControlModifier:  # ctrl+click
-            self.table.getTable().getSelection().addRowSelected(rowId)
-        elif modifiers == Qt.ShiftModifier:  # shift+click
-            self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
-
-        self._triggeredGotoItem = False
-        self.goToItem.setValue(index)
-        self._triggeredGotoItem = True
-        self.gallery.setCurrentRowColumn(row, self.gallery.getCurrentColumn())
-        self._updateStatusBarRowColumn()
-        self._updateStatusBarSelectedRows()
+            self._triggeredGotoItem = False
+            self.goToItem.setValue(index)
+            self._triggeredGotoItem = True
+            self.gallery.setCurrentRowColumn(row, self.gallery.getCurrentColumn())
+            self._updateStatusBarRowColumn()
+            self._updateStatusBarSelectedRows()
 
     def _gotoCurrentItem(self, itemIndex):
         if self._triggeredGotoItem:
