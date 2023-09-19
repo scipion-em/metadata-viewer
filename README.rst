@@ -20,7 +20,7 @@ You can install MetadataViewer using pip:
 
 .. code-block::
 
- pip install metadataviewer
+ pip install metadata-viewer
 
 
 Usage
