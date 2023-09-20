@@ -1,3 +1,9 @@
+- Sept 20, 2023:
+        * Showing the Properties table
+           - Adding columns 'key' and 'value' as visible columns
+        * Establishing 250 as default zoom size
+        * Extending Table object
+           - Adding a new property: hasColumnId
 
 - Sept 13, 2023:
     * v1.0 - First version

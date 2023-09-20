@@ -30,9 +30,9 @@ import argparse
 
 import logging
 logging.basicConfig(level=logging.INFO)
-
-
 logger = logging.getLogger(__name__)
+
+PROPERTIES_TABLE_LABELS = ' key value'
 
 
 def defineArgs():
@@ -66,9 +66,13 @@ def main():
         extension_module.extendMDViewer(ObjectManager)
 
     objectManager = ObjectManager()
+
     if args.visiblelabels:
         logger.info("Visible labels: %s" % args.visiblelabels)
+        args.visiblelabels += PROPERTIES_TABLE_LABELS
         objectManager.setVisibleLabels(args.visiblelabels.split(' '))
+
+
     if args.orderlabels:
         logger.info("Order labels: %s" % args.orderlabels)
         objectManager.setColumnsOrder(args.orderlabels.split(' '))

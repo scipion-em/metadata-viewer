@@ -81,7 +81,7 @@ BLOCKS = 'Tables'
 ZOOM = 'Size in pixels'
 
 # ---------------------CONSTANTS-----------------
-ZOOM_SIZE = 150
+ZOOM_SIZE = 250
 ZOOM_MIN_SIZE = 50
 ZOOM_MAX_SIZE = 2000
 PAGE_SIZE = 50

@@ -26,6 +26,6 @@
 # **************************************************************************
 
 
-IMAGE_DEFAULT_SIZE = 150
+IMAGE_DEFAULT_SIZE = 250
 LIMIT_TO_REQUEST = 1500000
 ROWS_TO_GUI_UPDATE = 1000000

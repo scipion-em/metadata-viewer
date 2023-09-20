@@ -161,6 +161,15 @@ class Table:
         self._sortingChanged = False
         self._actions = []
         self._selection = Selection()
+        self._hasColumnId = True
+
+    def hasColumnId(self):
+        """Return True if column Id is present in the table,
+        False in other case"""
+        return self._hasColumnId
+
+    def setHasColumnId(self, hasColumnId):
+        self._hasColumnId = hasColumnId
 
     def getSelection(self):
         """Return a dictionary with the selected rows ids"""

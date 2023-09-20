@@ -350,6 +350,7 @@ class TableView(QTableWidget):
         self.setColumnCount(0)
         self._tableName = tableName
         self._rowsCount = self.objectManager.getTableRowCount(self._tableName)
+        self._hasColumnId = self.objectManager.hasColumnId(self._tableName)
         self.mainWidget = QWidget()
         self.mainLayout = QVBoxLayout(self.mainWidget)
         self.verticalHeader().setVisible(True)
@@ -364,6 +365,7 @@ class TableView(QTableWidget):
         self._columnWithImages = self.getColumnWithImages()
         self.tableWithAdditionalInfo = self.objectManager.getTableWithAdditionalInfo()
         self._rowHeight = DEFAULT_ROW_HEIGHT  # Default row height
+        self._columnsWidth = [0 for i in range(len(self.columns))]
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
         self.propertiesTableDialog.InsertRows()
@@ -376,6 +378,10 @@ class TableView(QTableWidget):
         self.horizontalHeader().sectionClicked.connect(self.setCurrentColumn)
         self.verticalHeader().sectionClicked.connect(self.setCurrentRow)
         # self.setCurrentCell(0, 0)
+
+    def hasColumnId(self):
+        """Return True if the tabel has the id column"""
+        return self._hasColumnId
 
     def getTable(self):
         """Return the current table"""
@@ -489,7 +495,7 @@ class TableView(QTableWidget):
                 self.setRangeSelected(QTableWidgetSelectionRange(i + currentRowIndex,
                                                                  0, i + currentRowIndex,
                                                                  self.columnCount() - 1), True)
-            for col in range(len(values)):
+            for col in range(currenctColumnIndex, endColumn):
                 column = self._columns[col]
                 if self.propertiesTableDialog.visibleCheckBoxList[column.getIndex()]:
                     renderer = column.getRenderer()
@@ -512,9 +518,11 @@ class TableView(QTableWidget):
                         self._rowHeight = widget.sizeHint().height()
 
                     width = self.calculateColumnWidth(widget, column.getIndex())
+                    if width > self._columnsWidth[column.getIndex()]:
+                        self._columnsWidth[column.getIndex()] = width
 
                     self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
-                    self.setColumnWidth(column.getIndex(), width + 5)
+                    self.setColumnWidth(column.getIndex(), self._columnsWidth[column.getIndex()] + 5)
             self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
 
     def calculateColumnWidth(self, widget, index):
@@ -837,7 +845,6 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.horizontalHeader().customContextMenuRequested.connect(self.showHorizontalContextMenu)
         self.table.verticalHeader().setContextMenuPolicy(3)
         self.table.verticalHeader().customContextMenuRequested.connect(self.showVerticalContextMenu)
-
         self._columnWithImages = self.table.getColumnWithImages()
 
         # GalleryView
@@ -1397,45 +1404,49 @@ class QTMetadataViewer(QMainWindow, IGUI):
 
     def selectAll(self):
         """Mark as selected all the table"""
-        selection = QTableWidgetSelectionRange(0, 0, self._rowsCount - 1,
-                                               self.table.columnCount() - 1)
-        self.selectedRange(1, self._rowsCount)
-        self.table.setRangeSelected(selection, True)
+        if self.table.hasColumnId():
+            selection = QTableWidgetSelectionRange(0, 0, self._rowsCount - 1,
+                                                   self.table.columnCount() - 1)
+            self.selectedRange(1, self._rowsCount)
+            self.table.setRangeSelected(selection, True)
 
     def selectFromHere(self):
         """Mark as selected a range from the current row to the last row in
            the table"""
-        selection = QTableWidgetSelectionRange(self.table.getCurrentRow(), 0,
-                                               self._rowsCount - 1,
-                                               self.table.columnCount() - 1)
-        self.selectedRange(self.table.getCurrentRow() + 1, self._rowsCount)
-        self.table.setRangeSelected(selection, True)
+        if self.table.hasColumnId():
+            selection = QTableWidgetSelectionRange(self.table.getCurrentRow(), 0,
+                                                   self._rowsCount - 1,
+                                                   self.table.columnCount() - 1)
+            self.selectedRange(self.table.getCurrentRow() + 1, self._rowsCount)
+            self.table.setRangeSelected(selection, True)
 
     def selectToHere(self):
         """Mark as selected a range from the first row to the current row in
            the table"""
-        selection = QTableWidgetSelectionRange(0, 0,
-                                               self.table.getCurrentRow(),
-                                               self.table.columnCount() - 1)
-        self.selectedRange(1, self.table.getCurrentRow() + 1)
-        self.table.setRangeSelected(selection, True)
+        if self.table.hasColumnId():
+            selection = QTableWidgetSelectionRange(0, 0,
+                                                   self.table.getCurrentRow(),
+                                                   self.table.columnCount() - 1)
+            self.selectedRange(1, self.table.getCurrentRow() + 1)
+            self.table.setRangeSelected(selection, True)
 
     def selectedRange(self, top, bottom):
         """Mark as selected a range of rows starting from 'top' to 'bottom' """
-        if top > bottom:
-            topAux = top
-            top = bottom
-            startRow = top
-            numberOfRows = abs(top - topAux) - 1
-        else:
-            startRow = top
-            numberOfRows = bottom - top
+        if self.table.hasColumnId():
+            if top > bottom:
+                topAux = top
+                top = bottom
+                startRow = top
+                numberOfRows = abs(top - topAux) - 1
+            else:
+                startRow = top
+                numberOfRows = bottom - top
 
-        self.objectManager.getSelectedRangeRowsIds(self.table.getTableName(),
-                                                                   startRow, numberOfRows,
-                                                                   self.table.getColumns()[self.table.getSortedColumn()].getName(),
-                                                                   self.table._orderAsc)
-        self._updateStatusBarSelectedRows()
+            self.objectManager.getSelectedRangeRowsIds(self.table.getTableName(),
+                                                                       startRow, numberOfRows,
+                                                                       self.table.getColumns()[self.table.getSortedColumn()].getName(),
+                                                                       self.table._orderAsc)
+            self._updateStatusBarSelectedRows()
 
     def _tableCellClicked(self, row, column):
         """Event that control when a table cell is selected.

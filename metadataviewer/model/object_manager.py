@@ -171,6 +171,10 @@ class ObjectManager:
         self._dao.fillTable(table, self)
         return table
 
+    def hasColumnId(self, tableName):
+        table = self.getTable(tableName)
+        return table.hasColumnId()
+
     @lru_cache
     def getPage(self, tableName: str, pageNumber: int, pageSize: int,
                 actualColumn = 0,  orderAsc = True):
