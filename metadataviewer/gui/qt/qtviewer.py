@@ -264,29 +264,37 @@ class CustomWidget(QWidget):
             self._label.setText(str(data))
             self._layout.addWidget(self._label, alignment=Qt.AlignRight)
 
-        elif isinstance(data, numpy.ndarray):  # The data is a Matrix
+        elif isinstance(data, numpy.ndarray):  # The data is a Matrix or a CsvList
             self._type = numpy.ndarray
             tableArray = QTableWidget()
-            numRows, numCols = data.shape
-            tableArray.setRowCount(numRows)
-            tableArray.setColumnCount(numCols)
-            tableArray.horizontalHeader().hide()
-            tableArray.verticalHeader().hide()
-            tableArray.setEditTriggers(QTableWidget.NoEditTriggers)
-            tableArray.setShowGrid(False)
-            tableArray.setStyleSheet("QTableWidget { border: none; } "
-                                     "QTableWidget::item { border: none; }")
-            tableArray.setSelectionMode(QAbstractItemView.NoSelection)
+            shape = data.shape
+            if len(shape) == 2:  # Assuming the data is a Matrix
+                numRows, numCols = shape
+                tableArray.setRowCount(numRows)
+                tableArray.setColumnCount(numCols)
+                tableArray.horizontalHeader().hide()
+                tableArray.verticalHeader().hide()
+                tableArray.setEditTriggers(QTableWidget.NoEditTriggers)
+                tableArray.setShowGrid(False)
+                tableArray.setStyleSheet("QTableWidget { border: none; } "
+                                         "QTableWidget::item { border: none; }")
+                tableArray.setSelectionMode(QAbstractItemView.NoSelection)
 
-            tableArray.setMaximumHeight(100)
-            for i in range(numRows):
-                for j in range(numCols):
-                    item = QTableWidgetItem(str(data[i, j]))
-                    tableArray.setItem(i, j, item)
-                    tableArray.item(i, j).setTextAlignment(Qt.AlignRight)
-            tableArray.resizeColumnsToContents()
-            tableArray.resizeRowsToContents()
-            self._layout.addWidget(tableArray, alignment=Qt.AlignCenter | Qt.AlignCenter)
+                tableArray.setMaximumHeight(100)
+                for i in range(numRows):
+                    for j in range(numCols):
+                        if numRows > 1:
+                            item = QTableWidgetItem(str(data[i, j]))
+                        else:
+                           item = QTableWidgetItem(str(data[j]))
+                        tableArray.setItem(i, j, item)
+                        tableArray.item(i, j).setTextAlignment(Qt.AlignRight)
+                    tableArray.resizeColumnsToContents()
+                tableArray.resizeRowsToContents()
+                self._layout.addWidget(tableArray, alignment=Qt.AlignCenter | Qt.AlignCenter)
+            else:  # Assuming the data is a CsvList
+                self._label.setText(str(data))
+                self._layout.addWidget(self._label, alignment=Qt.AlignRight)
 
         else:  # Assuming the data is a file path to an image
             try:
@@ -580,7 +588,7 @@ class TableView(QTableWidget):
     def setCurrentRow(self, row):
         """Update the current row"""
         self._currentRow = row
-        
+
     def getLastSelectedRow(self):
         """Return the last selected row"""
         return self._lastSelectedRow
@@ -1341,6 +1349,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
                 self._loadGalleryView()
             else:
                 self.table.setCurrentRowColumn(0, 0)
+                self.table.vScrollBar.setValue(0)
                 self._loadTableView()
                 galleryEnable = True if self.gallery.getColumnWithImages() else False
                 if galleryEnable:

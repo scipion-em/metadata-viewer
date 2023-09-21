@@ -110,6 +110,8 @@ class MatrixRender(IRenderer):
         self._decimalNumber = decimalNumber
 
     def _render(self, value):
+        # replace nan values by 0
+        value = value.replace('nan', '0')
         matrix = np.array(eval(value))
         np.set_printoptions(precision=self._decimalNumber, suppress=True)
         return np.around(matrix, decimals=self._decimalNumber)
