@@ -1,3 +1,7 @@
+- Sept 21, 2023:
+        * Rendering CsvList object
+        * Fixing an error creating the table actions
+
 - Sept 20, 2023:
         * Showing the Properties table
            - Adding columns 'key' and 'value' as visible columns
