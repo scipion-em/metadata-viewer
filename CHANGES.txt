@@ -1,3 +1,6 @@
+- Sept 26, 2023:
+        * Fixing a visual error when scrolling the table
+
 - Sept 21, 2023:
         * Rendering CsvList object
         * Fixing an error creating the table actions

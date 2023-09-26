@@ -46,7 +46,7 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QStatusBar, QAbstractItemView, QSpinBox,
                              QPushButton, QApplication,
                              QTableWidgetSelectionRange, QFrame, QDesktopWidget,
-                             QFileDialog, QLineEdit, QGridLayout)
+                             QFileDialog, QLineEdit, QGridLayout, QHeaderView)
 
 from metadataviewer.model.object_manager import IGUI
 from .constants import *
@@ -385,6 +385,7 @@ class TableView(QTableWidget):
         self.cellClicked.connect(self.setCurrentRowColumn)
         self.horizontalHeader().sectionClicked.connect(self.setCurrentColumn)
         self.verticalHeader().sectionClicked.connect(self.setCurrentRow)
+        self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
         # self.setCurrentCell(0, 0)
 
     def hasColumnId(self):
@@ -531,7 +532,11 @@ class TableView(QTableWidget):
 
                     self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
                     self.setColumnWidth(column.getIndex(), self._columnsWidth[column.getIndex()] + 5)
-            self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
+
+            if i + currentRowIndex == self._rowsCount:
+                self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
+            else:
+                self.setRowHeight(i + currentRowIndex + 1, self._rowHeight + 5)
 
     def calculateColumnWidth(self, widget, index):
         """Method to calculate the column width taking into account
