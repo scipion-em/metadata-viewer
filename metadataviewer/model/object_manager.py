@@ -230,6 +230,28 @@ class ObjectManager:
                 break
         return rows
 
+    def getColumnsValues(self, tableName, selectedColumns, xAxis, selection,
+                         limit):
+        """Get the values of the selected columns in order to plot them"""
+        plot = {}
+        columnsValues = self._dao.getColumnsValues(tableName, selectedColumns,
+                                                   xAxis,  selection, limit)
+        firstValue = columnsValues[0]
+        for colName in selectedColumns:
+            col = self._dao._getColumnMap(tableName, colName)
+            if col == None:
+                col = colName
+            plot[colName] = [firstValue[col]]
+
+        for pos, value in enumerate(columnsValues):
+            if pos > 0:
+                for colName in selectedColumns:
+                    col = self._dao._getColumnMap(tableName, colName)
+                    if col == None:
+                        col = colName
+                    plot[colName].append(int(value[col]))
+        return plot
+
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
         """Return a range of rows starting at 'startRow' an amount of 'numberOfRows' """
         table = self.getTable(tableName)

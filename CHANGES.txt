@@ -1,3 +1,6 @@
+- Oct 3, 2023
+        * Adding the plotting option
+
 - Sept 26, 2023:
         * Fixing a visual error when scrolling the table
 

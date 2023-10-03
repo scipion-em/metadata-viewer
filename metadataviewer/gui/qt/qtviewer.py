@@ -29,6 +29,12 @@ import logging
 import numpy
 import numpy as np
 
+from matplotlib.backends.backend_qt import NavigationToolbar2QT
+from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
+import matplotlib.pyplot as plt
+
+from ...model import IntRenderer, FloatRenderer
+
 logger = logging.getLogger()
 
 import os.path
@@ -38,7 +44,7 @@ from PIL import Image
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QItemSelectionModel, QCoreApplication
 from PyQt5.QtGui import (QIcon, QKeySequence, QPixmap, QPalette, QColor,
-                         QFontMetrics)
+                         QFontMetrics, QIntValidator)
 from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QAction, QDialog, QVBoxLayout, QWidget, QScrollBar,
                              QDialogButtonBox, QTableWidget, QCheckBox,
@@ -46,15 +52,307 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QStatusBar, QAbstractItemView, QSpinBox,
                              QPushButton, QApplication,
                              QTableWidgetSelectionRange, QFrame, QDesktopWidget,
-                             QFileDialog, QLineEdit, QGridLayout, QHeaderView)
+                             QFileDialog, QLineEdit, QGridLayout, QHeaderView,
+                             QFormLayout)
 
 from metadataviewer.model.object_manager import IGUI
 from .constants import *
 from metadataviewer.gui import getImage
 
 
+class PlotColumns(QDialog):
+    """Class to plot the table columns"""
+
+    def __init__(self, parent, table):
+        super().__init__()
+        self.parent = parent
+        self._table = table
+        self.rowsCount = self._table.getRowsCount()
+        self.title = 'Plotter'
+        self.left = parent.x()
+        self.top = parent.y()
+        self.width = 1200
+        self.height = 580
+        self.numCol = 2
+        self.columns = []
+        self.selectedColumns = []
+        self.plottableColumns = {}
+        self.tableWidget = QTableWidget()
+        self.figure = plt.figure()
+        self.figure.clear()
+        self.canvas = FigureCanvas(self.figure)
+        self.ax = self.figure.add_subplot(111)
+        self.initUI()
+
+    def initUI(self):
+        """Create a main GUI"""
+        self.setWindowTitle(self.title)
+        self.setGeometry(self.left, self.top, self.width, self.height)
+        self.layout = QHBoxLayout(self)
+
+        self.createTable()
+
+        # Create a Table on the left side
+        # Add lineEdits
+        formLayout = QFormLayout()
+        # Add ComboBoxes
+        type = QLabel(TYPE)
+        self.type = QComboBox()
+        self.type.addItems([PLOT_LABEL, HISTOGRAM_LABEL, SCATTER_LABEL])
+        self.type.currentTextChanged.connect(self.activateBinParameter)
+        self.binsLabel = QLabel(BINS)
+        self.binsLabel.setVisible(False)
+        self.bins = QLineEdit(str(DEFAULT_BINS))
+        self.bins.textChanged.connect(self.plotSelectedColumns)
+        self.bins.setValidator(QIntValidator())
+        self.bins.setVisible(False)
+
+        xAxis = QLabel(XAXIS)
+        self.xAxis = QComboBox()
+        self.xAxis.addItems([''])
+        self.xAxis.currentTextChanged.connect(self.plotSelectedColumns)
+
+        formLayout.addRow(type, self.type)
+        formLayout.addRow(self.binsLabel, self.bins)
+        formLayout.addRow(xAxis, self.xAxis)
+
+        limitLabel = QLabel(LIMIT)
+        self.limitValue = QLineEdit(str(LIMIT_ROWS))
+        self.limitValue.setValidator(QIntValidator())
+        self.limitValue.setToolTip(LIMIT_HELP)
+        self.limitValue.textChanged.connect(self.changeLimit)
+        self.checkLimit = QCheckBox()
+        self.checkLimit.setChecked(True)
+        self._limit = int(self.limitValue.text())
+        self.checkLimit.stateChanged.connect(self.activateLimit)
+
+        fieldWidget = QWidget()
+        fieldLayout = QHBoxLayout(fieldWidget)
+        fieldLayout.setAlignment(Qt.AlignLeft | Qt.AlignLeft)
+        fieldLayout.setContentsMargins(0, 0, 0, 0)
+        fieldLayout.addWidget(self.limitValue)
+        fieldLayout.addWidget(self.checkLimit)
+
+        formLayout.addRow(limitLabel, fieldWidget)
+
+        formLayout.addWidget(self.tableWidget)
+        # Creating buttons
+        button_box = QDialogButtonBox(QDialogButtonBox.Close)
+        button_box.rejected.connect(self.reject)
+        formLayout.addWidget(button_box)
+        self.layout.addLayout(formLayout)
+
+        # Create a widget for the Matplotlib chart on the right
+        formLayoutPlot = QFormLayout()
+        self.loadingDataLabel = QLabel('Loading data...')
+        self.loadingDataLabel.setStyleSheet("background-color: rgba(255, 255, 255, 0.8);"
+                                            "color: red")
+        self.loadingDataLabel.setVisible(False)
+        self.loadingDataLabel.setAlignment(Qt.AlignCenter)
+
+        navigation_toolbar = NavigationToolbar2QT(self.canvas, self)
+        formLayoutPlot.addWidget(navigation_toolbar)
+        self.plotWidget = QWidget()
+        formLayoutPlot.addWidget(self.plotWidget)
+        formLayoutPlot.addWidget(self.loadingDataLabel)
+        formLayoutPlot.setAlignment(Qt.AlignCenter)
+        self.plotWidget.setLayout(QVBoxLayout())
+        self.plotWidget.layout().addWidget(self.canvas)
+        self.layout.addLayout(formLayoutPlot)
+
+    def activateBinParameter(self):
+        """Activate/deactivate the bins parameter when the Histogram plot type
+        is selected"""
+        if self.type.currentText() == HISTOGRAM_LABEL:
+            self.binsLabel.setVisible(True)
+            self.bins.setVisible(True)
+        else:
+            self.binsLabel.setVisible(False)
+            self.bins.setVisible(False)
+
+        self.plotSelectedColumns()
+
+    def activateLimit(self):
+        if self.checkLimit.isChecked():
+            self.limitValue.setEnabled(True)
+            self._limit = int(self.limitValue.text())
+        else:
+            self.limitValue.setEnabled(False)
+            self._limit = None
+        self.plotSelectedColumns()
+
+    def changeLimit(self):
+        if self.limitValue.text() != '':
+            self._limit =  int(self.limitValue.text())
+            self.plotSelectedColumns()
+
+    def createTable(self):
+        """Create the columns table"""
+        self.tableWidget = QTableWidget()
+        self.tableWidget.setColumnCount(self.numCol)
+        self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(LABEL))
+        self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(PLOT_LABEL))
+        self.tableWidget.setAlternatingRowColors(True)
+
+    def addRows(self):
+        """Fill the table with the label names"""
+        self.ax.cla()
+        self.selectedColumns = []
+        self.columns = []
+        self.tableTitle = self._table.getTable().getAlias()
+        self.tableWidget.clearContents()
+        self.columns = self._table.getColumns()
+        numRows = len(self.columns)
+
+        row = 0
+        self.tableWidget.setRowCount(numRows)
+        for i in range(numRows):
+            if isinstance(self.columns[i].getRenderer(), IntRenderer) or \
+                    isinstance(self.columns[i].getRenderer(), FloatRenderer):
+                columName = self.columns[i].getName()
+                self.addRow(row, columName)
+                row += 1
+                self.plottableColumns[columName] = row
+                self.xAxis.addItems([columName])
+        self.tableWidget.setRowCount(row)
+        self.tableWidget.resizeColumnsToContents()
+        self.setPlotWidget()
+
+    def addRow(self, numRow, label):
+        """Add a specific table column"""
+        labelItem = QTableWidgetItem(label)
+        labelItem.setTextAlignment(Qt.AlignLeft)
+
+        plotItem = QCheckBox()
+        plotItem.setCheckState(Qt.Unchecked)
+        plotItem.stateChanged.connect(lambda state,
+                                             row=numRow: self.onCellClicked(row, 1))
+        cellWidget = QWidget()
+        layoutCB = QHBoxLayout(cellWidget)
+        layoutCB.addWidget(plotItem)
+        layoutCB.setAlignment(Qt.AlignCenter)
+        layoutCB.setContentsMargins(0, 0, 0, 0)
+        cellWidget.setLayout(layoutCB)
+
+        self.tableWidget.setItem(numRow, 0, labelItem)
+        self.tableWidget.setCellWidget(numRow, 1, cellWidget)
+
+    def onCellClicked(self, row, col):
+        """Handle the column to plot"""
+        if col == 1:  # Plot column
+            plotItem = self.tableWidget.cellWidget(row, col).children()[1]
+            self.updatePlotState(plotItem, row)
+            self.plotSelectedColumns()
+
+    def updatePlotState(self, item, row):
+        """Handle the column list to plot"""
+        if item:
+            labelItem = self.tableWidget.item(row, 0)
+            if item.checkState():
+                labelItem.setFlags(labelItem.flags() | Qt.ItemIsEditable)
+                self.selectedColumns.append(labelItem.text())
+            else:
+                if labelItem.text() in self.selectedColumns:
+                    labelItem.setFlags(labelItem.flags() & ~Qt.ItemIsEditable)
+                    self.selectedColumns.remove(labelItem.text())
+
+    def openPlotDialog(self):
+        """Open the plot dialog"""
+        self.move(self.parent.geometry().center())
+        self.show()
+
+    def setPlotWidget(self):
+        """Set to default plot legend"""
+        self.ax.set_title(self.tableTitle)
+        self.ax.set_xlabel('X')
+        self.ax.set_ylabel('Y')
+        self.canvas.draw()
+
+    def plotSelectedColumns(self):
+        """Plot a selected columns"""
+        self.ax.cla()
+        self.setPlotWidget()
+        xAxis = self.xAxis.currentText()
+        self.isXAxisSelected = xAxis in self.selectedColumns
+        if xAxis:
+            self.ax.set_xlabel(xAxis)
+            self.canvas.draw()
+
+        if self.selectedColumns:
+            self.loadingDataLabel.setVisible(True)
+            self.repaint()
+            data = self._table.objectManager.getColumnsValues(self._table.getTableName(),
+                                                              self.selectedColumns,
+                                                              self.xAxis.currentText(),
+                                                              self._table.getTable().getSelection(),
+                                                              self._limit)
+            self.loadingDataLabel.setVisible(False)
+            if self.type.currentText() == PLOT_LABEL:
+                self.plotData(data, xAxis)
+            elif self.type.currentText() == HISTOGRAM_LABEL:
+                self.plotHistogram(data, xAxis)
+            elif self.type.currentText() == SCATTER_LABEL:
+                self.plotScatter(data, xAxis)
+
+            if not self.isXAxisSelected and xAxis in self.selectedColumns:
+                self.selectedColumns.remove(xAxis)
+
+    def plotData(self, data, xAxis):
+        """Plot the data in lines graphic mode"""
+        for key, values in data.items():
+            label = key
+            if label[0] == '_':
+                label = label[1:]
+            if xAxis == '':
+                self.ax.plot(values, label=label)
+            else:
+                if key != xAxis:
+                    self.ax.plot(data[xAxis], values, label=label)
+                else:
+                    if self.isXAxisSelected:
+                        self.ax.plot(data[xAxis], values, label=label)
+        self.ax.legend(loc="best")
+        self.canvas.draw()
+
+    def plotHistogram(self, data, xAxis):
+        """Plot the data in histogram mode"""
+        if self.bins.text() != '':
+            for key, values in data.items():
+                label = key
+                if label[0] == '_':
+                    label = label[1:]
+                if xAxis == '':
+                    self.ax.hist(values, bins=int(self.bins.text()),
+                                 edgecolor='black', align='left',
+                                 label=label)
+                else:
+                    if self.isXAxisSelected:
+                        self.ax.hist(values, bins=int(self.bins.text()),
+                                     edgecolor='black', align='left',
+                                     label=label)
+            self.ax.legend(loc="best")
+            self.canvas.draw()
+
+    def plotScatter(self, data, xAxis):
+        """Plot the data in scatter mode"""
+        for key, values in data.items():
+            label = key
+            if label[0] == '_':
+                label = label[1:]
+            if xAxis == '':
+                self.ax.scatter(values, values, label=label)
+            else:
+                if key != xAxis:
+                    self.ax.scatter(data[xAxis], values, label=label)
+                else:
+                    if self.isXAxisSelected:
+                        self.ax.scatter(data[xAxis], values, label=label)
+        self.ax.legend(loc="best")
+        self.canvas.draw()
+
+
 class ColumnPropertiesTable(QDialog):
-    """ Class to handler the columns properties(visible, render, edit) """
+    """ Class to handle the columns properties(visible, render, edit) """
     def __init__(self, parent, table):
         super().__init__()
         self.parent = parent
@@ -84,6 +382,7 @@ class ColumnPropertiesTable(QDialog):
 
     def createTable(self):
         self.tableWidget = QTableWidget()
+        self.tableWidget.setAlternatingRowColors(True)
         self.tableWidget.setColumnCount(self.numCol)
         self.tableWidget.setHorizontalHeaderItem(0, QTableWidgetItem(LABEL))
         self.tableWidget.setHorizontalHeaderItem(1, QTableWidgetItem(VISIBLE))
@@ -169,6 +468,7 @@ class ColumnPropertiesTable(QDialog):
     def openTableDialog(self):
         """Open the columns properties dialog"""
         self.InsertRows()
+        self.move(self.parent.geometry().center())
         self.show()
 
     def hideColumns(self):
@@ -341,6 +641,7 @@ class TableView(QTableWidget):
     def __init__(self, objectManager):
         super().__init__()
         self.propertiesTableDialog = ColumnPropertiesTable(self, self)
+
         self._pageNumber = 1  # First page
         self._pageSize = ZOOM_SIZE
         self._currentRow = 0
@@ -352,6 +653,10 @@ class TableView(QTableWidget):
         self.objectManager = objectManager
         self.setSelectionBehavior(QTableWidget.SelectRows)
         self._oldzoom = ZOOM_SIZE
+
+    def createPlotDialog(self):
+        self.plotDialog = PlotColumns(self, self)
+        self.plotDialog.addRows()
 
     def _createTable(self, tableName):
         """Create the table structure"""
@@ -391,6 +696,9 @@ class TableView(QTableWidget):
     def hasColumnId(self):
         """Return True if the tabel has the id column"""
         return self._hasColumnId
+
+    def getRowsCount(self):
+        return self._rowsCount
 
     def getTable(self):
         """Return the current table"""
@@ -1111,12 +1419,20 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.exitAction.triggered.connect(sys.exit)
 
         # Display actions
+
+        # Column properties action
         self.table.propertiesTableAction = QAction(COLUMNS, self)
         self.table.propertiesTableAction.triggered.connect(self.table.propertiesTableDialog.openTableDialog)
         self.table.propertiesTableAction.setShortcut(QKeySequence("Ctrl+C"))
         self.table.propertiesTableAction.setIcon(QIcon(getImage(PREFERENCES)))
         if self._galleryView:
             self.table.propertiesTableAction.setEnabled(False)
+
+        # Plot action
+        self.table.plotAction = QAction(PLOT_ACTION, self)
+        self.table.plotAction.triggered.connect(self.openPlotDialog)
+        self.table.plotAction.setShortcut(QKeySequence("Ctrl+P"))
+        self.table.plotAction.setIcon(QIcon(getImage(PLOT)))
 
         # Toolbar action
         self.gotoTableAction = QAction(GO_TO_TABLE_VIEW, self)
@@ -1169,6 +1485,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         # Tools menu
         toolsMenu = QMenu("&Tools", self)
         menu_bar.addMenu(toolsMenu)
+        toolsMenu.addAction(self.table.plotAction)
 
         # Help menu
         helpMenu = QMenu("&Help", self)
@@ -1181,14 +1498,12 @@ class QTMetadataViewer(QMainWindow, IGUI):
         toolBar = self.addToolBar("")
         toolBar.addAction(self.gotoTableAction)
         toolBar.addAction(self.gotoGalleryAction)
+        toolBar.addAction(self.table.propertiesTableAction)
+        toolBar.addAction(self.table.plotAction)
 
         self.blockLabelIcon = QLabel('\t')
         toolBar.addWidget(self.blockLabelIcon)
-        self.blockLabel = QLabel(BLOCKS)
-        icon = QIcon(getImage(TABLE_BLOCKS))
-        self.blockLabel.setPixmap(icon.pixmap(16, 16))
-        self.blockLabel.setToolTip(BLOCKS)
-        toolBar.addWidget(self.blockLabel)
+
         self.bockTableName = QComboBox()
         self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
@@ -1244,6 +1559,12 @@ class QTMetadataViewer(QMainWindow, IGUI):
         columnsToolBar2.addSeparator()
         columnsToolBar2.addWidget(self.gotoItemLabel)
         columnsToolBar2.addWidget(self.goToItem)
+
+    def openPlotDialog(self):
+        """Open the plot dialog"""
+        self.table.createPlotDialog()
+        self.table.plotDialog.openPlotDialog()
+
 
     def openFile(self):
         filepath, _ = QFileDialog.getOpenFileNames(self, 'Open metadata File',

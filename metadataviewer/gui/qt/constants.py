@@ -49,6 +49,7 @@ PLUS = 'plus.png'
 EXPORT_XLSX = 'export_xlsx.png'
 EXPORT_CSV = 'export_csv.png'
 OK = 'fa-ok.png'
+PLOT = 'plot.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -56,9 +57,22 @@ VISIBLE = 'Visible'
 RENDER = 'Render'
 EDIT = 'Edit'
 
+# -------- LABELS PLOT TABLE -----------------
+TYPE = 'Type'
+PLOT_LABEL = 'Plot'
+HISTOGRAM_LABEL = 'Histogram'
+SCATTER_LABEL = 'Scatter'
+BINS ='Bin'
+XAXIS = 'X Axis'
+LIMIT = 'Limit'
+LIMIT_HELP = 'Limit of elements to be retrieved for use in the plot. \n ' \
+             'If you uncheck the checkbox, the complete dataset is assumed.'
+
+
 # ------------ACTIONS TEXTS-------------------------
 
 COLUMNS = 'Columns...'
+PLOT_ACTION = 'Plot'
 GO_TO_TABLE_VIEW = "Go to TABLE view"
 GO_TO_GALLERY_VIEW = 'Go to GALLERY view'
 REDUCE_DECIMALS_TEXT = 'Reduce decimals'
@@ -88,6 +102,8 @@ PAGE_SIZE = 50
 DEFAULT_ROW_HEIGHT = 17
 DEFAULT_STATUS_BAR_HEIGHT = 30
 MAX_ITEMS_INDEX = 8000000
+DEFAULT_BINS = 50
+LIMIT_ROWS = 100000
 
 # -------------------- STATUS BAR LABELS ------------------
 
