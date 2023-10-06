@@ -67,6 +67,7 @@ XAXIS = 'X Axis'
 LIMIT = 'Limit'
 LIMIT_HELP = 'Limit of elements to be retrieved for use in the plot. \n ' \
              'If you uncheck the checkbox, the complete dataset is assumed.'
+SELECTION = 'Plot selection ?'
 
 
 # ------------ACTIONS TEXTS-------------------------
@@ -103,7 +104,7 @@ DEFAULT_ROW_HEIGHT = 17
 DEFAULT_STATUS_BAR_HEIGHT = 30
 MAX_ITEMS_INDEX = 8000000
 DEFAULT_BINS = 50
-LIMIT_ROWS = 100000
+LIMIT_ROWS = 50000
 
 # -------------------- STATUS BAR LABELS ------------------
 

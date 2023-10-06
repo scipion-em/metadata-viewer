@@ -231,26 +231,11 @@ class ObjectManager:
         return rows
 
     def getColumnsValues(self, tableName, selectedColumns, xAxis, selection,
-                         limit):
+                         limit, useSelection):
         """Get the values of the selected columns in order to plot them"""
-        plot = {}
-        columnsValues = self._dao.getColumnsValues(tableName, selectedColumns,
-                                                   xAxis,  selection, limit)
-        firstValue = columnsValues[0]
-        for colName in selectedColumns:
-            col = self._dao._getColumnMap(tableName, colName)
-            if col == None:
-                col = colName
-            plot[colName] = [firstValue[col]]
 
-        for pos, value in enumerate(columnsValues):
-            if pos > 0:
-                for colName in selectedColumns:
-                    col = self._dao._getColumnMap(tableName, colName)
-                    if col == None:
-                        col = colName
-                    plot[colName].append(int(value[col]))
-        return plot
+        return self._dao.getColumnsValues(tableName, selectedColumns, xAxis,
+                                          selection, limit,  useSelection)
 
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
         """Return a range of rows starting at 'startRow' an amount of 'numberOfRows' """
@@ -260,8 +245,8 @@ class ObjectManager:
                                                           numberOfRows, column,
                                                           reverse)
         self._gui.writeMessage('Storing selection...')
-        for i, id in enumerate(selectedRange):
-            table.getSelection().addRowSelected(id, remove=False)
+        for i, rowId in enumerate(selectedRange):
+            table.getSelection().addRowSelected(rowId, remove=False)
 
     def getTableNames(self):
         """Return the tables names"""

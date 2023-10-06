@@ -53,7 +53,7 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QPushButton, QApplication,
                              QTableWidgetSelectionRange, QFrame, QDesktopWidget,
                              QFileDialog, QLineEdit, QGridLayout, QHeaderView,
-                             QFormLayout)
+                             QFormLayout, QRadioButton, QButtonGroup)
 
 from metadataviewer.model.object_manager import IGUI
 from .constants import *
@@ -90,9 +90,9 @@ class PlotColumns(QDialog):
         self.setGeometry(self.left, self.top, self.width, self.height)
         self.layout = QHBoxLayout(self)
 
+        # Create a Table on the left side
         self.createTable()
 
-        # Create a Table on the left side
         # Add lineEdits
         formLayout = QFormLayout()
         # Add ComboBoxes
@@ -116,6 +116,7 @@ class PlotColumns(QDialog):
         formLayout.addRow(self.binsLabel, self.bins)
         formLayout.addRow(xAxis, self.xAxis)
 
+        # Add limit parameter
         limitLabel = QLabel(LIMIT)
         self.limitValue = QLineEdit(str(LIMIT_ROWS))
         self.limitValue.setValidator(QIntValidator())
@@ -135,7 +136,36 @@ class PlotColumns(QDialog):
 
         formLayout.addRow(limitLabel, fieldWidget)
 
-        formLayout.addWidget(self.tableWidget)
+        # Add selection parameter
+        groupbox = QButtonGroup()
+        self.radioYes = QRadioButton("Yes")
+        self.radioYes.setChecked(False)
+        self._useSelection = True
+        self.radioNo = QRadioButton("No")
+        self.radioYes.clicked.connect(self.useSelection)
+        self.radioNo.clicked.connect(self.unuseSelection)
+        self.radioNo.setChecked(False)
+        groupbox.addButton(self.radioYes)
+        groupbox.addButton(self.radioNo)
+        layout = QHBoxLayout()
+        layout.addWidget(self.radioYes)
+        layout.addWidget(self.radioNo)
+        self.selectionLabel = QLabel(SELECTION)
+        self.selectionWidget = QWidget()
+        selectionLayout = QHBoxLayout(self.selectionWidget)
+        selectionLayout.setAlignment(Qt.AlignLeft | Qt.AlignLeft)
+        selectionLayout.setContentsMargins(0, 0, 0, 0)
+        selectionLayout.addLayout(layout)
+
+        formLayout.addRow(self.selectionLabel, self.selectionWidget)
+        self.selectionWidget.setEnabled(False)
+
+        # Add table
+        tableLayout = QVBoxLayout()
+        tableLayout.addWidget(self.tableWidget)
+        tableLayout.setContentsMargins(0, 0, 0, 0)
+        formLayout.addRow(tableLayout)
+
         # Creating buttons
         button_box = QDialogButtonBox(QDialogButtonBox.Close)
         button_box.rejected.connect(self.reject)
@@ -150,10 +180,15 @@ class PlotColumns(QDialog):
         self.loadingDataLabel.setVisible(False)
         self.loadingDataLabel.setAlignment(Qt.AlignCenter)
 
+        self.plotInfo = QLabel('Plot:')
+        self.plotInfo.setVisible(False)
+        self.plotInfo.setAlignment(Qt.AlignCenter)
+
         navigation_toolbar = NavigationToolbar2QT(self.canvas, self)
         formLayoutPlot.addWidget(navigation_toolbar)
         self.plotWidget = QWidget()
         formLayoutPlot.addWidget(self.plotWidget)
+        formLayoutPlot.addWidget(self.plotInfo)
         formLayoutPlot.addWidget(self.loadingDataLabel)
         formLayoutPlot.setAlignment(Qt.AlignCenter)
         self.plotWidget.setLayout(QVBoxLayout())
@@ -172,6 +207,25 @@ class PlotColumns(QDialog):
 
         self.plotSelectedColumns()
 
+    def useSelection(self):
+        self._useSelection = True
+        self.plotSelectedColumns()
+
+    def unuseSelection(self):
+        self._useSelection = False
+        self.plotSelectedColumns()
+
+    def activateSelection(self):
+        self.selectionCount = self._table.getTable().getSelection().getCount()
+        if self.selectionCount > 1:
+            self.title += ' (Selected rows: %d)' % self.selectionCount
+            self.setWindowTitle(self.title)
+            self.selectionLabel.setEnabled(True)
+            self.selectionWidget.setEnabled(True)
+            self.radioYes.setChecked(True)
+        else:
+            self._useSelection = False
+
     def activateLimit(self):
         if self.checkLimit.isChecked():
             self.limitValue.setEnabled(True)
@@ -182,8 +236,8 @@ class PlotColumns(QDialog):
         self.plotSelectedColumns()
 
     def changeLimit(self):
-        if self.limitValue.text() != '':
-            self._limit =  int(self.limitValue.text())
+        if self.limitValue.text():
+            self._limit = int(self.limitValue.text())
             self.plotSelectedColumns()
 
     def createTable(self):
@@ -203,7 +257,7 @@ class PlotColumns(QDialog):
         self.tableWidget.clearContents()
         self.columns = self._table.getColumns()
         numRows = len(self.columns)
-
+        self.activateSelection()
         row = 0
         self.tableWidget.setRowCount(numRows)
         for i in range(numRows):
@@ -268,6 +322,36 @@ class PlotColumns(QDialog):
         self.ax.set_ylabel('Y')
         self.canvas.draw()
 
+    def showPlotInfo(self):
+        self.plotInfo.setVisible(True)
+        rowCount = self._table.getRowsCount()
+        limit = int(self.limitValue.text())
+
+        if self.selectionCount < 2:  # Assuming 2 or more items as selection
+            if self.checkLimit.isChecked() and limit < rowCount:
+                text = '%d items plotted (limit applied)' % limit
+            else:
+                text = '%d items plotted (all)' % rowCount
+
+        elif self.checkLimit.isChecked():
+            if self.radioYes.isChecked():
+                if self.selectionCount > limit:
+                    text = '%d items plotted (limit applied)' % limit
+                else:
+                    text = '%d items plotted (selection)' % self.selectionCount
+            else:
+                if limit > rowCount:
+                    text = '%d items plotted (all)' % rowCount
+                else:
+                    text = '%d items plotted (limit applied)' % limit
+        else:
+            if self.radioYes.isChecked():
+                text = '%d items plotted (selection)' % self.selectionCount
+            else:
+                text = '%d items plotted (all)' % rowCount
+
+        self.plotInfo.setText(text)
+
     def plotSelectedColumns(self):
         """Plot a selected columns"""
         self.ax.cla()
@@ -279,14 +363,17 @@ class PlotColumns(QDialog):
             self.canvas.draw()
 
         if self.selectedColumns:
+            self.plotInfo.setVisible(False)
             self.loadingDataLabel.setVisible(True)
             self.repaint()
             data = self._table.objectManager.getColumnsValues(self._table.getTableName(),
                                                               self.selectedColumns,
                                                               self.xAxis.currentText(),
                                                               self._table.getTable().getSelection(),
-                                                              self._limit)
+                                                              self._limit,
+                                                              self._useSelection)
             self.loadingDataLabel.setVisible(False)
+            self.showPlotInfo()
             if self.type.currentText() == PLOT_LABEL:
                 self.plotData(data, xAxis)
             elif self.type.currentText() == HISTOGRAM_LABEL:
@@ -300,10 +387,8 @@ class PlotColumns(QDialog):
     def plotData(self, data, xAxis):
         """Plot the data in lines graphic mode"""
         for key, values in data.items():
-            label = key
-            if label[0] == '_':
-                label = label[1:]
-            if xAxis == '':
+            label = key[1:] if key[0] == '_' else key
+            if not xAxis:
                 self.ax.plot(values, label=label)
             else:
                 if key != xAxis:
@@ -318,10 +403,8 @@ class PlotColumns(QDialog):
         """Plot the data in histogram mode"""
         if self.bins.text() != '':
             for key, values in data.items():
-                label = key
-                if label[0] == '_':
-                    label = label[1:]
-                if xAxis == '':
+                label = key[1:] if key[0] == '_' else key
+                if not xAxis:
                     self.ax.hist(values, bins=int(self.bins.text()),
                                  edgecolor='black', align='left',
                                  label=label)
@@ -336,10 +419,8 @@ class PlotColumns(QDialog):
     def plotScatter(self, data, xAxis):
         """Plot the data in scatter mode"""
         for key, values in data.items():
-            label = key
-            if label[0] == '_':
-                label = label[1:]
-            if xAxis == '':
+            label = key[1:] if key[0] == '_' else key
+            if not xAxis:
                 self.ax.scatter(values, values, label=label)
             else:
                 if key != xAxis:
