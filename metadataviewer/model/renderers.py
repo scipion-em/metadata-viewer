@@ -25,22 +25,39 @@
 # *
 # **************************************************************************
 import logging
-
-import numpy as np
-
-from .constants import IMAGE_DEFAULT_SIZE
-
 logger = logging.getLogger()
 
+import numpy as np
 import os.path
 from functools import lru_cache
 
 from PIL import Image
-import mrcfile
 from abc import abstractmethod
+
+from .constants import IMAGE_DEFAULT_SIZE
+
+
+class ExternalProgram:
+    def __init__(self, text, icon, tooltip, callback):
+        self._text = text
+        self._icon = icon
+        self._tooltip = tooltip
+        self._callback = callback
+
+    def open(self, path):
+        self._callback(path)
 
 
 class IRenderer:
+    _externalPrograms = []
+
+    @classmethod
+    def addProgram(cls, program: ExternalProgram):
+        cls._externalPrograms.append(program)
+
+    @classmethod
+    def getExternalPrograms(cls):
+        return cls._externalPrograms
 
     @abstractmethod
     def _render(self, value):

@@ -753,6 +753,7 @@ class TableView(QTableWidget):
         self.setEditTriggers(QAbstractItemView.NoEditTriggers)
         self.vScrollBar = CustomScrollBar()
         self.hScrollBar = QScrollBar()
+        self._columnsMap = {}
         self._createHeader()
         self._table = self.objectManager.getTable(self._tableName)
         self.columns = self._table.getColumns()
@@ -848,6 +849,7 @@ class TableView(QTableWidget):
         self._columns = table.getColumns()
         self.setColumnCount(len(self._columns))
         for i, column in enumerate(self._columns):
+            self._columnsMap[column.getName()] = i
             item = QTableWidgetItem(str(column.getName()))
             item.setTextAlignment(Qt.AlignCenter)
             self.setHorizontalHeaderItem(self._columns[i].getIndex(), item)
@@ -905,12 +907,16 @@ class TableView(QTableWidget):
                             item = renderer.render(values[col])
                             if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                                 text = self.composeAdditionaInfo(row)
-                                widget = CustomWidget(item, row.getId(), addText=True, text=text)
+                                widget = CustomWidget(item, row.getId(),
+                                                      imagePath=values[col],
+                                                      addText=True, text=text)
                             else:
-                                widget = CustomWidget(item, row.getId())
+                                widget = CustomWidget(item, row.getId(),
+                                                      imagePath=values[col])
                         else:
                             item = values[col]
-                            widget = CustomWidget(item, row.getId())
+                            widget = CustomWidget(item, row.getId(),
+                                                  imagePath=values[col])
 
                     if widget.sizeHint().height() > self._rowHeight:
                         self._rowHeight = widget.sizeHint().height()
@@ -1128,11 +1134,12 @@ class GalleryView(QTableWidget):
                     currentRow = rows[countImages]
                     if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                         text = self.composeAdditionaInfo(currentRow)
-                        widget = CustomWidget(item, currentRow.getId(), imagePath=value,
-                                              addText=True,
+                        widget = CustomWidget(item, currentRow.getId(),
+                                              imagePath=value, addText=True,
                                               text=text)
                     else:
-                        widget = CustomWidget(item, currentRow.getId(), imagePath=value)
+                        widget = CustomWidget(item, currentRow.getId(),
+                                              imagePath=value)
 
                     self.setCellWidget(currentValue + row, col, widget)
                     if rows[countImages].getId() in selection:
@@ -1641,11 +1648,13 @@ class QTMetadataViewer(QMainWindow, IGUI):
         columnsToolBar2.addWidget(self.gotoItemLabel)
         columnsToolBar2.addWidget(self.goToItem)
 
+        # External programs tool bar
+        self.externalProgramsToolBar = self.addToolBar("")
+
     def openPlotDialog(self):
         """Open the plot dialog"""
         self.table.createPlotDialog()
         self.table.plotDialog.openPlotDialog()
-
 
     def openFile(self):
         filepath, _ = QFileDialog.getOpenFileNames(self, 'Open metadata File',
@@ -1690,9 +1699,41 @@ class QTMetadataViewer(QMainWindow, IGUI):
             if item.widgetType() == Image:
                 self.zoom.setEnabled(True)
                 self.zoomLabel.setEnabled(True)
+                self.createTableExternalAction(item, column)
             else:
                 self.zoom.setEnabled(False)
                 self.zoomLabel.setEnabled(False)
+                self.externalProgramsToolBar.clear()
+
+    def createTableExternalAction(self, item, column):
+        """Create the external program actions for the table"""
+        columns = self.table.getTable().getColumns()
+        columnHeaderText = self.table.horizontalHeaderItem(column).text()
+        realIndex = self.table._columnsMap[columnHeaderText]
+        renderer = columns[realIndex].getRenderer()
+        externalPrograms = renderer.getExternalPrograms()
+        self.externalProgramsToolBar.clear()
+        self.addExternalActions(externalPrograms,
+                                item._imagePath.split('@')[-1])
+
+    def createGalleryExternalActions(self, item):
+        """Create the external program actions for the gallery"""
+        externalPrograms = self.gallery._renderer.getExternalPrograms()
+        self.externalProgramsToolBar.clear()
+        if externalPrograms is not None:
+            self.addExternalActions(externalPrograms,
+                                    item._imagePath.split('@')[-1])
+
+    def addExternalActions(self, externalPrograms, imagePath):
+        for externalProgram in externalPrograms:
+            action = QAction(externalProgram._tooltip, self)
+            if externalProgram._icon is not None:
+                action.setIcon(QIcon(externalProgram._icon))
+            else:
+                action.setText(externalProgram._text)
+            action.setEnabled(True)
+            action.triggered.connect(lambda: externalProgram._callback(imagePath))
+            self.externalProgramsToolBar.addAction(action)
 
     def toggleColumn(self, table_view, column):
         """Hide a given column"""
@@ -1900,7 +1941,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
                 self.table.getTable().getSelection().addRowSelected(rowId)
             elif modifiers == Qt.ShiftModifier:  # shift+click
                 self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
-
+            self.createGalleryExternalActions(self.gallery.cellWidget(row, column))
             self._triggeredGotoItem = False
             self.goToItem.setValue(index)
             self._triggeredGotoItem = True
