@@ -1713,27 +1713,28 @@ class QTMetadataViewer(QMainWindow, IGUI):
         renderer = columns[realIndex].getRenderer()
         externalPrograms = renderer.getExternalPrograms()
         self.externalProgramsToolBar.clear()
-        self.addExternalActions(externalPrograms,
-                                item._imagePath.split('@')[-1])
+        self.addExternalActions(externalPrograms, item)
 
     def createGalleryExternalActions(self, item):
         """Create the external program actions for the gallery"""
         externalPrograms = self.gallery._renderer.getExternalPrograms()
         self.externalProgramsToolBar.clear()
         if externalPrograms is not None:
-            self.addExternalActions(externalPrograms,
-                                    item._imagePath.split('@')[-1])
+            self.addExternalActions(externalPrograms, item)
 
-    def addExternalActions(self, externalPrograms, imagePath):
+    def addExternalActions(self, externalPrograms, item):
         for externalProgram in externalPrograms:
-            action = QAction(externalProgram._tooltip, self)
-            if externalProgram._icon is not None:
-                action.setIcon(QIcon(externalProgram._icon))
-            else:
-                action.setText(externalProgram._text)
-            action.setEnabled(True)
-            action.triggered.connect(lambda: externalProgram._callback(imagePath))
-            self.externalProgramsToolBar.addAction(action)
+            self.addExternalAction(externalProgram, item)
+
+    def addExternalAction(self, externalProgram, item):
+        action = QAction(externalProgram._tooltip, self)
+        if externalProgram._icon is not None:
+            action.setIcon(QIcon(externalProgram._icon))
+        else:
+            action.setText(externalProgram._text)
+        action.setEnabled(True)
+        action.triggered.connect(lambda: externalProgram._callback(item))
+        self.externalProgramsToolBar.addAction(action)
 
     def toggleColumn(self, table_view, column):
         """Hide a given column"""
