@@ -621,11 +621,11 @@ class CustomScrollBar(QScrollBar):
 
 class CustomWidget(QWidget):
     """Class to  custom the table cell widget"""
-    def __init__(self, data, id, imagePath='', addText=False, text=''):
+    def __init__(self, data, id, value, addText=False, text=''):
         super().__init__()
         self._data = data
         self._id = id
-        self._imagePath = imagePath
+        self._value = value
         self._layout = QVBoxLayout()
         self._layout.setContentsMargins(0, 0, 0, 0)
         self._label = QLabel()
@@ -708,9 +708,9 @@ class CustomWidget(QWidget):
         """Return the content data"""
         return self._data
 
-    def getImagePath(self):
+    def getValue(self):
         """Return the image path"""
-        return self._imagePath
+        return self._value
 
     def getId(self):
         """Return the widget id"""
@@ -759,7 +759,7 @@ class TableView(QTableWidget):
         self.columns = self._table.getColumns()
         self._columnWithImages = self.getColumnWithImages()
         self.tableWithAdditionalInfo = self.objectManager.getTableWithAdditionalInfo()
-        self._rowHeight = DEFAULT_ROW_HEIGHT  # Default row height
+        self._rowHeight = DEFAULT_ROW_HEIGHT if  not self._columnWithImages else self.getOldZoom()# Default row height
         self._columnsWidth = [0 for i in range(len(self.columns))]
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
@@ -901,22 +901,22 @@ class TableView(QTableWidget):
                     renderer = column.getRenderer()
                     if renderer.renderType() != Image:
                         item = renderer.render(values[col])
-                        widget = CustomWidget(item, row.getId())
+                        widget = CustomWidget(item, row.getId(), values[col])
                     else:
                         if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
                             item = renderer.render(values[col])
                             if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                                 text = self.composeAdditionaInfo(row)
                                 widget = CustomWidget(item, row.getId(),
-                                                      imagePath=values[col],
+                                                      values[col],
                                                       addText=True, text=text)
                             else:
                                 widget = CustomWidget(item, row.getId(),
-                                                      imagePath=values[col])
+                                                      values[col])
                         else:
                             item = values[col]
                             widget = CustomWidget(item, row.getId(),
-                                                  imagePath=values[col])
+                                                  values[col])
 
                     if widget.sizeHint().height() > self._rowHeight:
                         self._rowHeight = widget.sizeHint().height()
@@ -1135,11 +1135,11 @@ class GalleryView(QTableWidget):
                     if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                         text = self.composeAdditionaInfo(currentRow)
                         widget = CustomWidget(item, currentRow.getId(),
-                                              imagePath=value, addText=True,
+                                              value, addText=True,
                                               text=text)
                     else:
                         widget = CustomWidget(item, currentRow.getId(),
-                                              imagePath=value)
+                                              value)
 
                     self.setCellWidget(currentValue + row, col, widget)
                     if rows[countImages].getId() in selection:
@@ -1699,41 +1699,41 @@ class QTMetadataViewer(QMainWindow, IGUI):
             if item.widgetType() == Image:
                 self.zoom.setEnabled(True)
                 self.zoomLabel.setEnabled(True)
-                self.createTableExternalAction(item, column)
+                self.createTableExtraAction(item, column)
             else:
                 self.zoom.setEnabled(False)
                 self.zoomLabel.setEnabled(False)
                 self.externalProgramsToolBar.clear()
 
-    def createTableExternalAction(self, item, column):
+    def createTableExtraAction(self, item, column):
         """Create the external program actions for the table"""
         columns = self.table.getTable().getColumns()
         columnHeaderText = self.table.horizontalHeaderItem(column).text()
         realIndex = self.table._columnsMap[columnHeaderText]
         renderer = columns[realIndex].getRenderer()
-        externalPrograms = renderer.getExternalPrograms()
+        extraActions = renderer.getActions()
         self.externalProgramsToolBar.clear()
-        self.addExternalActions(externalPrograms, item)
+        self.addExtraActions(extraActions, item)
 
-    def createGalleryExternalActions(self, item):
+    def createGalleryExtraActions(self, item):
         """Create the external program actions for the gallery"""
-        externalPrograms = self.gallery._renderer.getExternalPrograms()
+        extraActions = self.gallery._renderer.getActions()
         self.externalProgramsToolBar.clear()
-        if externalPrograms is not None:
-            self.addExternalActions(externalPrograms, item)
+        if extraActions is not None:
+            self.addExtraActions(extraActions, item)
 
-    def addExternalActions(self, externalPrograms, item):
-        for externalProgram in externalPrograms:
-            self.addExternalAction(externalProgram, item)
+    def addExtraActions(self, extraActions, item):
+        for extraAction in extraActions:
+            self.addExtraAction(extraAction, item)
 
-    def addExternalAction(self, externalProgram, item):
-        action = QAction(externalProgram._tooltip, self)
-        if externalProgram._icon is not None:
-            action.setIcon(QIcon(externalProgram._icon))
+    def addExtraAction(self, extraAction, item):
+        action = QAction(extraAction._tooltip, self)
+        if extraAction._icon is not None:
+            action.setIcon(QIcon(extraAction._icon))
         else:
-            action.setText(externalProgram._text)
+            action.setText(extraAction._text)
         action.setEnabled(True)
-        action.triggered.connect(lambda: externalProgram._callback(item))
+        action.triggered.connect(lambda: extraAction._callback(item.getValue()))
         self.externalProgramsToolBar.addAction(action)
 
     def toggleColumn(self, table_view, column):
@@ -1942,7 +1942,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
                 self.table.getTable().getSelection().addRowSelected(rowId)
             elif modifiers == Qt.ShiftModifier:  # shift+click
                 self.selectedRange(self.table.getLastSelectedRow() - 1, row + 1)
-            self.createGalleryExternalActions(self.gallery.cellWidget(row, column))
+            self.createGalleryExtraActions(self.gallery.cellWidget(row, column))
             self._triggeredGotoItem = False
             self.goToItem.setValue(index)
             self._triggeredGotoItem = True

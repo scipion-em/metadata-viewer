@@ -37,7 +37,7 @@ from abc import abstractmethod
 from .constants import IMAGE_DEFAULT_SIZE
 
 
-class ExternalProgram:
+class Action:
     def __init__(self, text, icon, tooltip, callback):
         self._text = text
         self._icon = icon
@@ -49,15 +49,15 @@ class ExternalProgram:
 
 
 class IRenderer:
-    _externalPrograms = []
 
-    @classmethod
-    def addProgram(cls, program: ExternalProgram):
-        cls._externalPrograms.append(program)
+    def __init__(self):
+        self._extraActions = []
 
-    @classmethod
-    def getExternalPrograms(cls):
-        return cls._externalPrograms
+    def addAction(self, action: Action):
+        self._extraActions.append(action)
+
+    def getActions(self):
+        return self._extraActions
 
     @abstractmethod
     def _render(self, value):
@@ -97,6 +97,7 @@ class IntRenderer(IRenderer):
 class FloatRenderer(IRenderer):
 
     def __init__(self, decimalNumber: int = 2):
+        super().__init__()
         self._decimalNumber = decimalNumber
 
     def _render(self, value):
@@ -124,6 +125,7 @@ class BoolRenderer(IRenderer):
 class MatrixRender(IRenderer):
 
     def __init__(self, decimalNumber: int = 2):
+        super().__init__()
         self._decimalNumber = decimalNumber
 
     def _render(self, value):
@@ -169,6 +171,7 @@ class ImageRenderer(IRenderer):
     _imageReaders = []
 
     def __init__(self, size=IMAGE_DEFAULT_SIZE):
+        super().__init__()
         self._size = size
 
     def getSize(self):
