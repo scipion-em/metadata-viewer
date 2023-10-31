@@ -759,7 +759,7 @@ class TableView(QTableWidget):
         self.columns = self._table.getColumns()
         self._columnWithImages = self.getColumnWithImages()
         self.tableWithAdditionalInfo = self.objectManager.getTableWithAdditionalInfo()
-        self._rowHeight = DEFAULT_ROW_HEIGHT # Default row height
+        self._rowHeight = DEFAULT_ROW_HEIGHT if self._columnWithImages is None else self.getOldZoom()  # Default row height
         self._columnsWidth = [0 for i in range(len(self.columns))]
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)

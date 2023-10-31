@@ -1,4 +1,7 @@
-- Oct 11, 2023
+- Oct 21, 2023 (v1.9)
+        * Performance improvements
+
+- Oct 11, 2023 (v1.8)
         * Adding external programs to visualize images
 
 - Oct 6, 2023
