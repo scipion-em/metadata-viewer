@@ -52,7 +52,7 @@ setup(
     version=__version__,  # Required
     description='Generic metadata viewer',  # Required
     long_description=long_description,  # Optional
-    url='https://github.com/fonsecareyna82/metadata_viewer',  # Optional
+    url='https://github.com/scipion-em/metadata-viewer',  # Optional
     author='Yunior C. Fonseca-Reyna, Pablo Conesa, Jorge Jiménez',  # Optional
     author_email='cfonseca@cnb.csic.es, pconesa@cnb.csic.es, jjimenez@cnb.csic.es',  # Optional
     classifiers=[

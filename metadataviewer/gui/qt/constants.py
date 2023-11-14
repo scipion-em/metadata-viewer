@@ -50,6 +50,7 @@ EXPORT_XLSX = 'export_xlsx.png'
 EXPORT_CSV = 'export_csv.png'
 OK = 'fa-ok.png'
 PLOT = 'plot.png'
+IMAGE = 'image.png'
 
 # -------LABELS PROPERTIES_TABLE ------------
 LABEL = 'Label'
@@ -88,6 +89,8 @@ SELECT = 'Select'
 SELECT_ALL = 'All'
 SELECT_FROM_HERE = 'From here'
 SELECT_TO_HERE = 'To here'
+
+IMAGE_MENU = 'Image'
 
 
 # --------------TOOLBAR LABELS & VARIABLES----------------

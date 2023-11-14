@@ -198,7 +198,8 @@ class ImageRenderer(IRenderer):
     def _renderWithSize(self, value, size):
         imageReader = self.getImageReader(value)
         image = imageReader.open(value)
-        imageR = image.resize((size, size))
+        sizeX, sizeY = image.size
+        imageR = image.resize((size, int(size*sizeY/sizeX)))
         imageR.thumbnail((size, size))
         return imageR
 

@@ -40,7 +40,7 @@ logger = logging.getLogger()
 import os.path
 import sys
 
-from PIL import Image
+from PIL import Image, ImageOps, ImageFilter
 from PyQt5 import QtGui
 from PyQt5.QtCore import Qt, QItemSelectionModel, QCoreApplication
 from PyQt5.QtGui import (QIcon, QKeySequence, QPixmap, QPalette, QColor,
@@ -621,7 +621,7 @@ class CustomScrollBar(QScrollBar):
 
 class CustomWidget(QWidget):
     """Class to  custom the table cell widget"""
-    def __init__(self, data, id, value, addText=False, text=''):
+    def __init__(self, data, id, value, addText=False, text='', autocontrast=False, gaussianBlurFilter=False):
         super().__init__()
         self._data = data
         self._id = id
@@ -679,6 +679,10 @@ class CustomWidget(QWidget):
 
         else:  # Assuming the data is a file path to an image
             try:
+                if autocontrast:
+                    data = ImageOps.autocontrast(data)
+                if gaussianBlurFilter:
+                    data = data.filter(ImageFilter.GaussianBlur(radius=0.5))
                 im = data.convert("RGBA")
                 data = im.tobytes("raw", "RGBA")
                 qimage = QtGui.QImage(data, im.size[0], im.size[1],
@@ -686,6 +690,8 @@ class CustomWidget(QWidget):
 
                 pixmap = QPixmap.fromImage(qimage)
                 self._label.setPixmap(pixmap)
+                if addText:
+                    self._layout.addSpacing(5)
                 self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
                 self._type = Image
 
@@ -760,6 +766,8 @@ class TableView(QTableWidget):
         self._columnWithImages = self.getColumnWithImages()
         self.tableWithAdditionalInfo = self.objectManager.getTableWithAdditionalInfo()
         self._rowHeight = DEFAULT_ROW_HEIGHT if self._columnWithImages is None else self.getOldZoom()  # Default row height
+        self._applyImageAutocontrast = False
+        self._applyImageGaussianBlurFilter = False
         self._columnsWidth = [0 for i in range(len(self.columns))]
         self.propertiesTableDialog.registerColumns(self.columns)
         self.propertiesTableDialog.setLoadFirstTime(True)
@@ -773,7 +781,6 @@ class TableView(QTableWidget):
         self.horizontalHeader().sectionClicked.connect(self.setCurrentColumn)
         self.verticalHeader().sectionClicked.connect(self.setCurrentRow)
         self.verticalHeader().setSectionResizeMode(QHeaderView.Fixed)
-        # self.setCurrentCell(0, 0)
 
     def hasColumnId(self):
         """Return True if the tabel has the id column"""
@@ -823,6 +830,22 @@ class TableView(QTableWidget):
             if col.getRenderer().renderType() == Image:
                 return i
         return None
+
+    def getApplyImageAutocontrast(self):
+        """Return the applyImageAutocontrast parameter value"""
+        return self._applyImageAutocontrast
+
+    def setApplyImageAutocontrast(self, value):
+        """Set the applyImageAutocontrast value"""
+        self._applyImageAutocontrast = value
+
+    def getApplyImageGaussianBlurFilter(self):
+        """Return the applyImageGaussianBlurFilter parameter value"""
+        return self._applyImageGaussianBlurFilter
+
+    def setApplyImageGaussianBlurFilter(self, value):
+        """Set the applyImageGaussianBlurFilter value"""
+        self._applyImageGaussianBlurFilter = value
 
     def orderByColumn(self, column, order):
         """Ordering a given column in a order mode(ASC, DESC)"""
@@ -909,14 +932,20 @@ class TableView(QTableWidget):
                                 text = self.composeAdditionaInfo(row)
                                 widget = CustomWidget(item, row.getId(),
                                                       values[col],
-                                                      addText=True, text=text)
+                                                      addText=True, text=text,
+                                                      autocontrast=self.getApplyImageAutocontrast(),
+                                                      gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
                             else:
                                 widget = CustomWidget(item, row.getId(),
-                                                      values[col])
+                                                      values[col],
+                                                      autocontrast=self.getApplyImageAutocontrast(),
+                                                      gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
                         else:
                             item = values[col]
                             widget = CustomWidget(item, row.getId(),
-                                                  values[col])
+                                                  values[col],
+                                                  autocontrast=self.getApplyImageAutocontrast(),
+                                                  gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
 
                     if widget.sizeHint().height() > self._rowHeight:
                         self._rowHeight = widget.sizeHint().height()
@@ -1008,6 +1037,8 @@ class GalleryView(QTableWidget):
         self._currentRow = 0
         self._currentColumn = 0
         self._lastSelectedCell = 0
+        self._applyImageAutocontrast = False
+        self._applyImageGaussianBlurFilter = False
         self.cellClicked.connect(self.setCurrentRowColumn)
         self.setGeometry(0, 0, 600, 600)
         self._oldzoom = ZOOM_SIZE
@@ -1092,6 +1123,22 @@ class GalleryView(QTableWidget):
         """Set the old gallery zoom value"""
         self._oldzoom = value
 
+    def getApplyImageAutocontrast(self):
+        """Return the applyImageAutocontrast parameter value"""
+        return self._applyImageAutocontrast
+
+    def setApplyImageAutocontrast(self, value):
+        """Set the applyImageAutocontrast value"""
+        self._applyImageAutocontrast = value
+
+    def getApplyImageGaussianBlurFilter(self):
+        """Return the applyImageGaussianBlurFilter parameter value"""
+        return self._applyImageGaussianBlurFilter
+
+    def setApplyImageGaussianBlurFilter(self, value):
+        """Set the applyImageGaussianBlurFilter value"""
+        self._applyImageGaussianBlurFilter = value
+
     def _calculateVisibleColumns(self):
         """Method that calculate how many columns are visible"""
         viewportWidth = self.parent().width() if self.parent() else self.viewport().width()
@@ -1136,10 +1183,15 @@ class GalleryView(QTableWidget):
                         text = self.composeAdditionaInfo(currentRow)
                         widget = CustomWidget(item, currentRow.getId(),
                                               value, addText=True,
-                                              text=text)
+                                              text=text,
+                                              autocontrast=self.getApplyImageAutocontrast(),
+                                              gaussianBlurFilter=self.getApplyImageGaussianBlurFilter()
+                                              )
                     else:
                         widget = CustomWidget(item, currentRow.getId(),
-                                              value)
+                                              value, autocontrast=self.getApplyImageAutocontrast(),
+                                              gaussianBlurFilter=self.getApplyImageGaussianBlurFilter()
+                                              )
 
                     self.setCellWidget(currentValue + row, col, widget)
                     if rows[countImages].getId() in selection:
@@ -1522,6 +1574,22 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.plotAction.setShortcut(QKeySequence("Ctrl+P"))
         self.table.plotAction.setIcon(QIcon(getImage(PLOT)))
 
+        # SubMenu Image
+        self.table.imageMenu = QMenu(IMAGE_MENU, self)
+        self.autocontrastAction = QAction('Autocontrast', self)
+        self.autocontrastAction.setCheckable(True)
+        self.autocontrastAction.setShortcut(QKeySequence("Ctrl+A"))
+        self.gaussianBlurAction = QAction('Gaussian blur filter', self)
+        self.gaussianBlurAction.setCheckable(True)
+        self.gaussianBlurAction.setShortcut(QKeySequence("Ctrl+G"))
+
+        self.table.imageMenu.addAction(self.autocontrastAction)
+        self.table.imageMenu.addAction(self.gaussianBlurAction)
+        self.table.imageMenu.setIcon(QIcon(getImage(IMAGE)))
+
+        self.autocontrastAction.toggled.connect(self.applyAutocontrast)
+        self.gaussianBlurAction.toggled.connect(self.gaussianBlurFilter)
+
         # Toolbar action
         self.gotoTableAction = QAction(GO_TO_TABLE_VIEW, self)
         self.gotoTableAction.setIcon(QIcon(getImage(TABLE_VIEW)))
@@ -1574,6 +1642,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         toolsMenu = QMenu("&Tools", self)
         menu_bar.addMenu(toolsMenu)
         toolsMenu.addAction(self.table.plotAction)
+        toolsMenu.addMenu(self.table.imageMenu)
 
         # Help menu
         helpMenu = QMenu("&Help", self)
@@ -1656,6 +1725,34 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.createPlotDialog()
         self.table.plotDialog.openPlotDialog()
 
+    def applyAutocontrast(self):
+        """Apply autocontrast to images"""
+        if self.autocontrastAction.isChecked():
+            self.table.setApplyImageAutocontrast(True)
+            self.gallery.setApplyImageAutocontrast(True)
+        else:
+            self.table.setApplyImageAutocontrast(False)
+            self.gallery.setApplyImageAutocontrast(False)
+
+        if self._tableView:
+            self.table._fillTable()
+        else:
+            self.gallery._update()
+
+    def gaussianBlurFilter(self):
+        """Apply a gaussian blur filter to the images"""
+        if self.gaussianBlurAction.isChecked():
+            self.table.setApplyImageGaussianBlurFilter(True)
+            self.gallery.setApplyImageGaussianBlurFilter(True)
+        else:
+            self.table.setApplyImageGaussianBlurFilter(False)
+            self.gallery.setApplyImageGaussianBlurFilter(False)
+
+        if self._tableView:
+            self.table._fillTable()
+        else:
+            self.gallery._update()
+
     def openFile(self):
         filepath, _ = QFileDialog.getOpenFileNames(self, 'Open metadata File',
                                                    '', '(*.sqlite *.star *.xmd)')
@@ -1681,7 +1778,6 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.propertiesTableAction.setEnabled(True)
         self.table._triggeredResize = False
         self.gotoTableAction.setEnabled(False)
-        self.gotoGalleryAction.setEnabled(True)
         galleryEnable = True if self.table.getColumnWithImages() else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
         self._triggeredResize = False
@@ -1751,6 +1847,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self._tableView = True
         galleryEnable = True if self._columnWithImages else False
         self.gotoGalleryAction.setEnabled(galleryEnable)
+        self.table.imageMenu.setEnabled(galleryEnable)
         self.gotoTableAction.setEnabled(False)
         self.setCentralWidget(self.table)
         self.bockTableName.setEnabled(True)
@@ -1791,16 +1888,17 @@ class QTMetadataViewer(QMainWindow, IGUI):
             self.tableName = tableName
             self.zoom.setValue(ZOOM_SIZE)
             self.table._createTable(tableName)
+            self._columnWithImages = self.table._columnWithImages
             self.gallery._createGallery(tableName)
 
-            if self._galleryView and self.table.getColumnWithImages():
+            if self._galleryView and self._columnWithImages:
                 self.gallery.setCurrentRowColumn(0, 0)
                 self._loadGalleryView()
             else:
                 self.table.setCurrentRowColumn(0, 0)
                 self.table.vScrollBar.setValue(0)
                 self._loadTableView()
-                galleryEnable = True if self.gallery.getColumnWithImages() else False
+                galleryEnable = True if self._columnWithImages else False
                 if galleryEnable:
                     self.gotoGalleryAction.setEnabled(True)
                 else:
@@ -1823,6 +1921,8 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.setCurrentRow(0)
         self.table.setCurrentColumn(col)
         self._updateStatusBarRowColumn()
+        # self.table.orderByColumn(col, self.table._orderAsc)
+        # self.table._orderAsc = not self.table._orderAsc
 
     def resizeEvent(self, event):
         """Control the resize event"""
