@@ -132,6 +132,8 @@ class MatrixRender(IRenderer):
         # replace nan values by 0
         value = value.replace('nan', '0')
         matrix = np.array(eval(value))
+        if matrix.shape == ():  # Case where eval works for value but is not a matrix or an array
+            raise Exception("This value can be converted into a numpy array but it does not constitute a matrix or an array.")
         np.set_printoptions(precision=self._decimalNumber, suppress=True)
         return np.around(matrix, decimals=self._decimalNumber)
 
@@ -187,6 +189,7 @@ class ImageRenderer(IRenderer):
         for imageReader in cls._imageReaders:
             if ext in imageReader.getCompatibleFileTypes():
                 return imageReader
+        # return None
 
     def setSize(self, size):
         self._size = size
