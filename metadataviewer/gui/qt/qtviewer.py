@@ -1302,10 +1302,13 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.verticalHeader().sectionClicked.connect(self.onVerticalHeaderClicked)
         self.table.horizontalHeader().sectionClicked.connect(self.onHorizontalHeaderClicked)
         self.table.cellClicked.connect(self._tableCellClicked)
-        self.table.horizontalHeader().setContextMenuPolicy(3)
+        self.table.horizontalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.horizontalHeader().customContextMenuRequested.connect(self.showHorizontalContextMenu)
-        self.table.verticalHeader().setContextMenuPolicy(3)
+        self.table.verticalHeader().setContextMenuPolicy(Qt.CustomContextMenu)
         self.table.verticalHeader().customContextMenuRequested.connect(self.showVerticalContextMenu)
+        self.table.setContextMenuPolicy(Qt.CustomContextMenu)
+        self.table.customContextMenuRequested.connect(self.showVerticalContextMenu)
+
         self._columnWithImages = self.table.getColumnWithImages()
 
         # GalleryView
@@ -1371,10 +1374,15 @@ class QTMetadataViewer(QMainWindow, IGUI):
         selectToHereAction = QAction(SELECT_TO_HERE, self)
         selectToHereAction.setIcon(QIcon(getImage(TO_HERE)))
         selectToHereAction.triggered.connect(lambda: self.selectToHere())
+        #Invert Selection
+        selectInverseAction = QAction(SELECT_INVERT, self)
+        selectInverseAction.setIcon(QIcon(getImage(INVERT_SELECTION)))
+        selectInverseAction.triggered.connect(lambda: self.selectInverse())
 
         selectSubMenu.addAction(selectAllAction)
         selectSubMenu.addAction(selectFromHereAction)
         selectSubMenu.addAction(selectToHereAction)
+        selectSubMenu.addAction(selectInverseAction)
 
         contextMenu.addMenu(selectSubMenu)
 
@@ -1672,7 +1680,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.bockTableName.setToolTip(BLOCKS)
         toolBar.addWidget(self.bockTableName)
 
-        # Columns tool bar
+        # Toolbar columns
         columnsToolBar2 = self.addToolBar("")
 
         self.zoomLabel = QLabel(getImage(ZOOM))
@@ -1921,8 +1929,8 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.table.setCurrentRow(0)
         self.table.setCurrentColumn(col)
         self._updateStatusBarRowColumn()
-        # self.table.orderByColumn(col, self.table._orderAsc)
-        # self.table._orderAsc = not self.table._orderAsc
+        self.table.orderByColumn(col, self.table._orderAsc)
+        self.table._orderAsc = not self.table._orderAsc
 
     def resizeEvent(self, event):
         """Control the resize event"""
@@ -2001,10 +2009,20 @@ class QTMetadataViewer(QMainWindow, IGUI):
                 numberOfRows = bottom - top
 
             self.objectManager.getSelectedRangeRowsIds(self.table.getTableName(),
-                                                                       startRow, numberOfRows,
-                                                                       self.table.getColumns()[self.table.getSortedColumn()].getName(),
-                                                                       self.table._orderAsc)
+                                                       startRow, numberOfRows,
+                                                       self.table.getColumns()[self.table.getSortedColumn()].getName(),
+                                                       self.table._orderAsc)
             self._updateStatusBarSelectedRows()
+
+    def selectInverse(self):
+        """Mark as selected the inverse of the provided selection """
+        if self.table.hasColumnId():
+            tableName = self.table.getTableName()
+            self.objectManager.getSelectedRangeRowsIds(tableName, 0, self.objectManager.getTableRowCount(tableName),
+                                                       self.table.getColumns()[self.table.getSortedColumn()].getName(),
+                                                       self.table._orderAsc, True)
+            self._updateStatusBarSelectedRows()
+            self.table._loadRows()
 
     def _tableCellClicked(self, row, column):
         """Event that control when a table cell is selected.
@@ -2078,7 +2096,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
             self.table.setCurrentRowColumn(itemIndex, col)
             if moveScroll:
                 self.table.vScrollBar.setValue(itemIndex)
-            self.table.setCurrentRowColumn(itemIndex,col)
+            self.table.setCurrentRowColumn(itemIndex, col)
         self._updateStatusBarRowColumn()
         self._updateStatusBarSelectedRows()
 

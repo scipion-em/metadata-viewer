@@ -237,7 +237,7 @@ class ObjectManager:
         return self._dao.getColumnsValues(tableName, selectedColumns, xAxis,
                                           selection, limit,  useSelection)
 
-    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True):
+    def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True, remove=False):
         """Return a range of rows starting at 'startRow' an amount of 'numberOfRows' """
         table = self.getTable(tableName)
         self._gui.writeMessage('Retrieving identifiers...')
@@ -246,7 +246,7 @@ class ObjectManager:
                                                           reverse)
         self._gui.writeMessage('Storing selection...')
         for i, rowId in enumerate(selectedRange):
-            table.getSelection().addRowSelected(rowId, remove=False)
+            table.getSelection().addRowSelected(rowId, remove=remove)
 
     def getTableNames(self):
         """Return the tables names"""
@@ -300,16 +300,22 @@ class ObjectManager:
         columns = table.getColumns()
         filepath = self._gui.getSaveFileName()
         if filepath:
-            with open(filepath, 'w', newline='') as csv_file:
-                csv_writer = csv.writer(csv_file)
+            with open(filepath, 'w', newline='') as csvFile:
+                csvWriter = csv.writer(csvFile)
                 header_data = [col.getName() for col in columns]
-                csv_writer.writerow(header_data)
+                csvWriter.writerow(header_data)
 
-                for row, rowId in enumerate(selection):
-                    rowValues = self.getCurrentRow(table,  rowId - 1).getValues()
-                    if rowValues is not None:
-                        csv_writer.writerow(rowValues)
-
+                if selection:
+                    for row, rowId in enumerate(selection):
+                        rowValues = self.getCurrentRow(table,  rowId - 1).getValues()
+                        if rowValues is not None:
+                            csvWriter.writerow(rowValues)
+                else:  # Export all the table
+                    rowCount = self.getTableRowCount(tableName)
+                    for rowId in range(rowCount):
+                        rowValues = self.getCurrentRow(table, rowId).getValues()
+                        if rowValues is not None:
+                            csvWriter.writerow(rowValues)
 
 
 

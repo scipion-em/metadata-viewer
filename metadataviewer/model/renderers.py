@@ -166,7 +166,7 @@ class PILImageReader(ImageReader):
 
     @classmethod
     def getCompatibleFileTypes(cls) -> list:
-        return ['jpg', 'png']
+        return ['jpg', 'png', 'psd', 'xmp']
 
 
 class ImageRenderer(IRenderer):
