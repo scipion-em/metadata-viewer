@@ -305,7 +305,7 @@ class ObjectManager:
                 header_data = [col.getName() for col in columns]
                 csvWriter.writerow(header_data)
 
-                if selection:
+                if selection and len(selection) > 1:
                     for row, rowId in enumerate(selection):
                         rowValues = self.getCurrentRow(table,  rowId - 1).getValues()
                         if rowValues is not None:

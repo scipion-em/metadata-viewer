@@ -1516,6 +1516,9 @@ class QTMetadataViewer(QMainWindow, IGUI):
     def getSaveFileName(self):
         filepath, _ = QFileDialog.getSaveFileName(self, 'Save CSV File', '',
                                                   'CSV Files (*.csv)')
+        if filepath and not filepath.endswith(".csv"):
+            filepath += ".csv"
+
         return filepath
 
     def getSubsetName(self, typeOfObjects, elementsCount):
