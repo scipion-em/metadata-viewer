@@ -248,8 +248,22 @@ class ObjectManager:
         for i, rowId in enumerate(selectedRange):
             table.getSelection().addRowSelected(rowId, remove=remove)
 
+    def selectByRange(self, tableName, minValue, maxValue, column, reverse=True, remove=False):
+        table = self.getTable(tableName)
+        self._gui.writeMessage('Retrieving identifiers...')
+        selectedRange = self._dao.getRowsIds(tableName, minValue,  maxValue, column, reverse, remove)
+        self._gui.writeMessage('Storing selection...')
+        selection = table.getSelection().clone()
+        isSelectionEmpty = selection.isEmpty()
+        table.getSelection().clear()
+        for i, rowId in enumerate(selectedRange):
+            if isSelectionEmpty:
+                table.getSelection().addRowSelected(rowId, remove=remove)
+            elif not isSelectionEmpty and selection.isRowSelected(rowId):
+                table.getSelection().addRowSelected(rowId, remove=remove)
+
     def getTableNames(self):
-        """Return the tables names"""
+        """Return the table names"""
         return self._dao.getTableNames()
 
     def getTableAliases(self):
