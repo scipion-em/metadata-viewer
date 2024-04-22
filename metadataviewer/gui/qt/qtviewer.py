@@ -461,19 +461,13 @@ class PlotColumns(QDialog):
 
         if self.showSelector():
 
-            def update(val):
-                self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
-                self.drawRangeLines(self.ax, self.minSliderValue, self.maxSliderValue)
-                plt.draw()
-
             self.rangeLines = []
-            if xAxis:
-                minValue, maxValue = min(data[xAxis]), max(data[xAxis])
-            else:
+            if not xAxis:
                 xAxis = max(data, key=lambda k: max(data[k]) if k != COLUMN_ID else float('-inf'))
-                minValue, maxValue = min(data[xAxis]), max(data[xAxis])
 
+            minValue, maxValue = min(data[xAxis]), max(data[xAxis])
             self.xAxisValue = xAxis
+
             if minValue != maxValue:
                 if self.isXAxisSelected or xAxis not in self.selectedColumns:
                     ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label=SELECTION_SLIDER, facecolor=SLIDER_COLOR)
@@ -488,8 +482,13 @@ class PlotColumns(QDialog):
                                                valinit=(minValue, maxValue))
                 self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
                 self.drawRangeLines(self.ax, self.minSliderValue, self.maxSliderValue)
-                self.rangeSlider.on_changed(update)
+                self.rangeSlider.on_changed(self.sliderUpdate)
                 self.canvas.draw()
+
+    def sliderUpdate(self, value):
+        self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
+        self.drawRangeLines(self.ax, self.minSliderValue, self.maxSliderValue)
+        plt.draw()
 
     def plotHistogram(self, data, xAxis):
         """Plot the data in histogram mode"""
@@ -509,27 +508,20 @@ class PlotColumns(QDialog):
 
         if self.showSelector():
             self.orientation = 'horizontal'
-
-            def update(val):
-                self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
-                self.drawRangeLines(self.ax, self.minSliderValue, self.maxSliderValue)
-                plt.draw()
-
             self.rangeLines = []
-            if xAxis:
-                minValue, maxValue = min(data[xAxis]), max(data[xAxis])
-            else:
-                xAxis = max(data, key=lambda k: max(data[k]) if k != COLUMN_ID else float('-inf'))
-                minValue, maxValue = min(data[xAxis]), max(data[xAxis])
 
+            if not xAxis:
+                xAxis = max(data, key=lambda k: max(data[k]) if k != COLUMN_ID else float('-inf'))
+            minValue, maxValue = min(data[xAxis]), max(data[xAxis])
             self.xAxisValue = xAxis
+
             if minValue != maxValue:
                 ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label=SELECTION_SLIDER, facecolor=SLIDER_COLOR)
                 self.rangeSlider = RangeSlider(ax_slider, 'Selection', minValue, maxValue,
                                                valinit=(minValue, maxValue))
                 self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
                 self.drawRangeLines(self.ax, self.minSliderValue, self.maxSliderValue)
-                self.rangeSlider.on_changed(update)
+                self.rangeSlider.on_changed(self.sliderUpdate)
                 self.canvas.draw()
 
     def drawRangeLines(self, ax, minVal, maxVal):
