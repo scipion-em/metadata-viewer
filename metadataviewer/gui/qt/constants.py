@@ -64,13 +64,16 @@ TYPE = 'Type'
 PLOT_LABEL = 'Plot'
 HISTOGRAM_LABEL = 'Histogram'
 SCATTER_LABEL = 'Scatter'
-BINS ='Bin'
+BINS = 'Bin'
 XAXIS = 'X Axis'
-LIMIT = 'Limit'
-LIMIT_HELP = 'Limit of elements to be retrieved for use in the plot. \n ' \
-             'If you uncheck the checkbox, the complete dataset is assumed.'
+LIMIT = 'Limit rows'
+LIMIT_HELP = 'Limit the elements to be retrieved while designing the plot (faster). \n ' \
+             'If you uncheck the checkbox, the complete dataset is used. \n ' \
+             'Graphical selection in the plot is affected by this limit'
 SELECTION = 'Plot selection ?'
-
+COLUMN_ID = 'id'
+SELECTION_SLIDER = 'Selection slider'
+SLIDER_COLOR = 'lightgoldenrodyellow'
 
 # ------------ACTIONS TEXTS-------------------------
 
@@ -109,7 +112,7 @@ DEFAULT_ROW_HEIGHT = 17
 DEFAULT_STATUS_BAR_HEIGHT = 30
 MAX_ITEMS_INDEX = 8000000
 DEFAULT_BINS = 50
-LIMIT_ROWS = 50000
+LIMIT_ROWS = 100000
 
 # -------------------- STATUS BAR LABELS ------------------
 

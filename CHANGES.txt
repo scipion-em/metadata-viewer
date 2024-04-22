@@ -1,3 +1,12 @@
+- April 16, 2024 (v1.10)
+        * Performance improvements
+        * Adding invert selection
+        * Allowing the subset creation from the plotter selection
+        * Visual enhancements:
+          - Vertical scroll adjusts to the total number of rows in the table
+          - Show a scroll bar in the tables combobox if there are more than 5 tables
+
+
 - Oct 21, 2023 (v1.9)
         * Performance improvements
 

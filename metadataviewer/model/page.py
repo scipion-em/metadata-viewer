@@ -134,6 +134,9 @@ class Selection:
     def getCount(self):
         return self._count
 
+    def isEmpty(self):
+        return self._count == 0
+
     def addRowSelected(self, rowId, remove=True):
         if not self.isRowSelected(rowId):
             self._selection[rowId] = True
@@ -148,6 +151,12 @@ class Selection:
     def clear(self):
         self._selection.clear()
         self._count = 0
+
+    def clone(self):
+        newSelection = Selection()
+        newSelection._count = self._count
+        newSelection._selection = dict(self._selection)
+        return newSelection
 
 
 class Table:
@@ -174,6 +183,9 @@ class Table:
     def getSelection(self):
         """Return a dictionary with the selected rows ids"""
         return self._selection
+
+    def setSelection(self, selection):
+        self._selection = selection
 
     def getActions(self):
         return self._actions

@@ -73,3 +73,4 @@ class IDAO:
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True) -> list:
         pass
 
+

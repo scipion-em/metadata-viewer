@@ -249,7 +249,7 @@ class ObjectManager:
             table.getSelection().addRowSelected(rowId, remove=remove)
 
     def getTableNames(self):
-        """Return the tables names"""
+        """Return the table names"""
         return self._dao.getTableNames()
 
     def getTableAliases(self):
