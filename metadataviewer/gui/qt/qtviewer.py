@@ -52,7 +52,7 @@ from PyQt5.QtWidgets import (QMainWindow, QMenuBar, QMenu, QLabel,
                              QPushButton, QApplication,
                              QTableWidgetSelectionRange, QFrame, QDesktopWidget,
                              QFileDialog, QLineEdit, QGridLayout, QHeaderView,
-                             QFormLayout, QRadioButton, QButtonGroup, QMessageBox)
+                             QFormLayout, QRadioButton, QButtonGroup, QMessageBox, QListView)
 
 from metadataviewer.model.object_manager import IGUI
 from .constants import *
@@ -82,6 +82,7 @@ class PlotColumns(QDialog):
         self.figure.clear()
         self.canvas = FigureCanvas(self.figure)
         self.ax = self.figure.add_subplot(111)
+        self.isColumnIdSelected = False
         self.initUI()
 
     def initUI(self):
@@ -216,28 +217,30 @@ class PlotColumns(QDialog):
 
     def selectRows(self, callback):
         """Create a subset from plotter selection"""
-        table = self._table.getTable()
-        tableName = table.getName()
-        objectManager = self._table.getObjectManager()
-        if hasattr(self, 'rangeSlider'):  # Case of histogram
-            table.setSelection(self.selection.clone())
-            objectManager.selectByRange(tableName,
-                                      self.minSliderValue,
-                                      self.maxSliderValue,
-                                      self.xAxisValue,
-                                      self._table._orderAsc)
+        tableSelection = self._table.getTable().getSelection()
+        tableSelection.clear()
 
-            callback()
+        if hasattr(self, 'rangeSlider'):  # Histogram or plot cases
+            selectedIndexes = [
+                index for index, value in enumerate(self.data[self.xAxisValue])
+                if self.minSliderValue <= value <= self.maxSliderValue
+            ]
         elif hasattr(self, 'currentPolygon'):  # Case of scatter
-            # Apply the table selection
-            tableSelection = self._table.getTable().getSelection()
-            tableSelection.clear()
-            for rowId in self.scatterIndexes:
-                tableSelection.addRowSelected(self.data[COLUMN_ID][rowId])
-            callback()
+            selectedIndexes = self.scatterIndexes
+
         else:
             QMessageBox.information(self, "Information", "You need to plot at least one column in the plot.",
                                     QMessageBox.Ok)
+            return
+
+        for rowId in selectedIndexes:
+            tableSelection.addRowSelected(self.data[COLUMN_ID][rowId])
+
+        if tableSelection.isEmpty():
+            QMessageBox.information(self, "Information", "The selection has generated an empty set. "
+                                                         "The set will not be created",   QMessageBox.Ok)
+        else:
+            callback()
 
     def activateBinParameter(self):
         """Activate/deactivate the bin parameter when the Histogram plot type is selected"""
@@ -345,16 +348,17 @@ class PlotColumns(QDialog):
         """Handle the column list to plot"""
         if item:
             labelItem = self.tableWidget.item(row, 0)
+            if labelItem.text() == COLUMN_ID:
+                self.isColumnIdSelected = True if not self.isColumnIdSelected else False
+
             if item.checkState():
                 labelItem.setFlags(labelItem.flags() | Qt.ItemIsEditable)
-                self.selectedColumns.append(labelItem.text())
-                self.isColumnIdSelected = COLUMN_ID == labelItem.text()
+                if not labelItem.text() in self.selectedColumns:
+                    self.selectedColumns.append(labelItem.text())
             else:
                 if labelItem.text() in self.selectedColumns:
                     labelItem.setFlags(labelItem.flags() & ~Qt.ItemIsEditable)
                     self.selectedColumns.remove(labelItem.text())
-                    if labelItem.text() == COLUMN_ID:
-                        self.isColumnIdSelected = False
 
     def openPlotDialog(self):
         """Open the plot dialog"""
@@ -455,9 +459,7 @@ class PlotColumns(QDialog):
         self.ax.legend(loc="best")
         self.canvas.draw()
 
-        showSelector = len(self.selectedColumns) == 2
-
-        if showSelector:
+        if self.showSelector():
 
             def update(val):
                 self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
@@ -473,7 +475,7 @@ class PlotColumns(QDialog):
 
             self.xAxisValue = xAxis
             if minValue != maxValue:
-                if self.isXAxisSelected:
+                if self.isXAxisSelected or xAxis not in self.selectedColumns:
                     ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label='Range slider', facecolor='lightgoldenrodyellow')
                     self.orientation = 'horizontal'
                     plt.subplots_adjust(left=0.1, right=0.90, bottom=0.2)
@@ -505,8 +507,7 @@ class PlotColumns(QDialog):
             self.ax.legend(loc="best")
             self.canvas.draw()
 
-        showSelector = len(self.selectedColumns) == 2
-        if showSelector:
+        if self.showSelector():
             self.orientation = 'horizontal'
 
             def update(val):
@@ -573,7 +574,7 @@ class PlotColumns(QDialog):
         self.ax.legend(loc="best")
         self.canvas.draw()
 
-        showSelector = len(self.selectedColumns) == 2
+        showSelector = self.showSelector()
         if showSelector:
 
             def onSelect(vertices):
@@ -606,6 +607,8 @@ class PlotColumns(QDialog):
             self.scatterSelector = PolygonSelector(self.ax, onSelect, useblit=True)
             self.canvas.draw_idle()
 
+    def showSelector(self):
+        return len(self.selectedColumns) == 1 or (not self.selectedColumns and self.isColumnIdSelected)
 
 class ColumnPropertiesTable(QDialog):
     """ Class to handle the columns properties (visible, render, edit) """
@@ -952,6 +955,8 @@ class TableView(QTableWidget):
         self.setVerticalScrollBar(self.vScrollBar)
         self.setHorizontalScrollBar(self.hScrollBar)
         self.vScrollBar.valueChanged.connect(lambda: self._loadRows())
+        rowHeight = self._rowHeight if self._rowHeight else DEFAULT_ROW_HEIGHT
+        self.vScrollBar.setMaximum(rowHeight * self.getRowsCount())
         self.hScrollBar.valueChanged.connect(lambda: self._loadRows())
         self.cellClicked.connect(self.setCurrentRowColumn)
         self.horizontalHeader().sectionClicked.connect(self.setCurrentColumn)
@@ -1852,6 +1857,13 @@ class QTMetadataViewer(QMainWindow, IGUI):
         toolBar.addWidget(self.blockLabelIcon)
 
         self.bockTableName = QComboBox()
+        list_view = QListView(self.bockTableName)
+        list_view.setVerticalScrollBarPolicy(1)
+        self.bockTableName.setView(list_view)
+        if len(self.tableNames) > 10:  # Show a scroll bar if there are more than 10 tables
+            list_view.setVerticalScrollBarPolicy(Qt.ScrollBarAlwaysOn)
+        else:
+            list_view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
             self.bockTableName.addItem(self.tableAliases[tableName])

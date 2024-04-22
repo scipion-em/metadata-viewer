@@ -73,7 +73,4 @@ class IDAO:
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True) -> list:
         pass
 
-    @abstractmethod
-    def getRowsIds(self, tableName, minValue, maxValue, column, reverse=True) -> list:
-        pass
 
