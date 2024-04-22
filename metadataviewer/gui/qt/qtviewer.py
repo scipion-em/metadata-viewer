@@ -476,11 +476,11 @@ class PlotColumns(QDialog):
             self.xAxisValue = xAxis
             if minValue != maxValue:
                 if self.isXAxisSelected or xAxis not in self.selectedColumns:
-                    ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label='Range slider', facecolor='lightgoldenrodyellow')
+                    ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label=SELECTION_SLIDER, facecolor=SLIDER_COLOR)
                     self.orientation = 'horizontal'
                     plt.subplots_adjust(left=0.1, right=0.90, bottom=0.2)
                 else:
-                    ax_slider = plt.axes([0.08, 0.1, 0.02, 0.75], label='Range slider', facecolor='lightgoldenrodyellow')
+                    ax_slider = plt.axes([0.08, 0.1, 0.02, 0.75], label=SELECTION_SLIDER, facecolor=SLIDER_COLOR)
                     self.orientation = 'vertical'
                     plt.subplots_adjust(left=0.25, right=0.95, bottom=0.1)
 
@@ -524,7 +524,7 @@ class PlotColumns(QDialog):
 
             self.xAxisValue = xAxis
             if minValue != maxValue:
-                ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label='Range slider', facecolor='lightgoldenrodyellow')
+                ax_slider = plt.axes([0.14, 0.05, 0.70, 0.03], label=SELECTION_SLIDER, facecolor=SLIDER_COLOR)
                 self.rangeSlider = RangeSlider(ax_slider, 'Selection', minValue, maxValue,
                                                valinit=(minValue, maxValue))
                 self.minSliderValue, self.maxSliderValue = self.rangeSlider.val
@@ -559,23 +559,16 @@ class PlotColumns(QDialog):
             if not xAxis:
                 x, y = values, values
                 self.ax.scatter(values, values, label=label)
-            else:
-                if key != xAxis:
+            elif key != xAxis or self.isXAxisSelected:
                     x = data[xAxis]
                     y = values
                     self.ax.scatter(data[xAxis], values, label=label)
-                else:
-                    if self.isXAxisSelected:
-                        x = data[xAxis]
-                        y = values
-                        self.ax.scatter(data[xAxis], values, label=label)
 
         plt.subplots_adjust(left=0.1, right=0.95, bottom=0.1)
         self.ax.legend(loc="best")
         self.canvas.draw()
 
-        showSelector = self.showSelector()
-        if showSelector:
+        if self.showSelector():
 
             def onSelect(vertices):
                 self.scatterIndexes = np.nonzero(containsPoints(vertices, x, y))[0]

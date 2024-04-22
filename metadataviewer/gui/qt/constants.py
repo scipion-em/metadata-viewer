@@ -72,6 +72,8 @@ LIMIT_HELP = 'Limit the elements to be retrieved while designing the plot (faste
              'Graphical selection in the plot is affected by this limit'
 SELECTION = 'Plot selection ?'
 COLUMN_ID = 'id'
+SELECTION_SLIDER = 'Selection slider'
+SLIDER_COLOR = 'lightgoldenrodyellow'
 
 # ------------ACTIONS TEXTS-------------------------
 
