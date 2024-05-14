@@ -1,0 +1,37 @@
+- April 16, 2024 (v1.10)
+        * Performance improvements
+        * Adding invert selection
+        * Allowing the subset creation from the plotter selection
+        * Visual enhancements:
+          - Vertical scroll adjusts to the total number of rows in the table
+          - Show a scroll bar in the tables combobox if there are more than 5 tables
+
+
+- Oct 21, 2023 (v1.9)
+        * Performance improvements
+
+- Oct 11, 2023 (v1.8)
+        * Adding external programs to visualize images
+
+- Oct 6, 2023
+        * Handling the plotting of selected rows
+
+- Oct 3, 2023
+        * Adding the plotting option
+
+- Sept 26, 2023:
+        * Fixing a visual error when scrolling the table
+
+- Sept 21, 2023:
+        * Rendering CsvList object
+        * Fixing an error creating the table actions
+
+- Sept 20, 2023:
+        * Showing the Properties table
+           - Adding columns 'key' and 'value' as visible columns
+        * Establishing 250 as default zoom size
+        * Extending Table object
+           - Adding a new property: hasColumnId
+
+- Sept 13, 2023:
+    * v1.0 - First version
