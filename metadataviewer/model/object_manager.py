@@ -83,6 +83,9 @@ class ObjectManager:
 
     def open(self, args):
         self._fileName = args.fileName
+
+        if not os.path.exists(self._fileName):
+            sys.exit("File %s does not exists. Can't continue." % self._fileName)
         self.selectDAO()
         if not self._gui:
             from metadataviewer.gui.qt.qtviewer import QTMetadataViewer

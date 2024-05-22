@@ -37,7 +37,7 @@ class Column:
     def __init__(self, name, renderer=None):
         self._name = name
         self._alias = None
-        self._renderer = renderer or StrRenderer
+        self._renderer = renderer or StrRenderer()
         self._isSorteable = True
         self._isVisible = True
         self._index = -1
@@ -251,13 +251,13 @@ class Table:
                        the data renderer
         """
         for i in range(len(columns)):
-            column = Column(columns[i], self.guessRender(values[i]))
+            column = Column(columns[i], self.guessRenderer(values[i]))
             self.addColumn(column)
 
     @classmethod
     def guessRenderer(cls, value):
         """ Guess the renderer based on a value. This may not be accurate. You can always specify the renderer in the DAO."""
-        return _guessRender(value)
+        return _guessRenderer(value)
 
     def clear(self):
         """ Remove all columns """
@@ -326,7 +326,7 @@ class Page:
 
 # --------- Helper functions  ------------------------
 
-def _guessRender(strValue):
+def _guessRenderer(strValue):
     """Return a render for a given value. This render is assigned to a column"""
     if strValue is None:
         return StrRenderer()

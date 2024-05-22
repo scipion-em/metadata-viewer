@@ -48,13 +48,8 @@ class IDAO:
     def getTableNames(self) -> list:
         pass
 
-    @abstractmethod
     def getTableAliases(self) -> dict:
-        pass
-
-    @abstractmethod
-    def sort(self, tableName, column, reverse=True) -> None:
-        pass
+        return {table: table for table in self.getTableNames()}
 
     @staticmethod
     @abstractmethod
@@ -72,5 +67,11 @@ class IDAO:
     @abstractmethod
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True) -> list:
         pass
+
+    @abstractmethod
+    def getColumnsValues(self, tableName, columns, xAxis, selection, limit,
+                         useSelection, reverse=True):
+        pass
+
 
 

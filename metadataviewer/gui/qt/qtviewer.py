@@ -404,37 +404,48 @@ class PlotColumns(QDialog):
 
     def plotSelectedColumns(self):
         """Plot a selected columns"""
-        self.removeSelectionTools()
-        self.oldMinValue, self.oldMaxValue = None, None
-        self.ax.cla()
-        self.setPlotWidget()
-        xAxis = self.xAxis.currentText()
-        self.isXAxisSelected = xAxis in self.selectedColumns
-        if xAxis:
-            self.ax.set_xlabel(xAxis)
-            self.canvas.draw()
 
-        if self.selectedColumns:
-            self.plotInfo.setVisible(False)
-            self.loadingDataLabel.setVisible(True)
-            self.repaint()
-            self.data = self._table.objectManager.getColumnsValues(self._table.getTableName(),
-                                                              self.selectedColumns,
-                                                              xAxis,
-                                                              self.selection,
-                                                              self._limit,
-                                                              self._useSelection)
-            self.loadingDataLabel.setVisible(False)
-            self.showPlotInfo()
-            if self.type.currentText() == PLOT_LABEL:
-                self.plotData(self.data, xAxis)
-            elif self.type.currentText() == HISTOGRAM_LABEL:
-                self.plotHistogram(self.data, xAxis)
-            elif self.type.currentText() == SCATTER_LABEL:
-                self.plotScatter(self.data, xAxis)
+        try:
+            self.removeSelectionTools()
+            self.oldMinValue, self.oldMaxValue = None, None
+            self.ax.cla()
+            self.setPlotWidget()
+            xAxis = self.xAxis.currentText()
+            self.isXAxisSelected = xAxis in self.selectedColumns
+            if xAxis:
+                self.ax.set_xlabel(xAxis)
+                self.canvas.draw()
 
-            if not self.isXAxisSelected and xAxis in self.selectedColumns:
-                self.selectedColumns.remove(xAxis)
+            if self.selectedColumns:
+                self.plotInfo.setVisible(False)
+                self.loadingDataLabel.setVisible(True)
+                self.repaint()
+                self.data = self._table.objectManager.getColumnsValues(self._table.getTableName(),
+                                                                  self.selectedColumns,
+                                                                  xAxis,
+                                                                  self.selection,
+                                                                  self._limit,
+                                                                  self._useSelection)
+                self.loadingDataLabel.setVisible(False)
+                self.showPlotInfo()
+                if self.type.currentText() == PLOT_LABEL:
+                    self.plotData(self.data, xAxis)
+                elif self.type.currentText() == HISTOGRAM_LABEL:
+                    self.plotHistogram(self.data, xAxis)
+                elif self.type.currentText() == SCATTER_LABEL:
+                    self.plotScatter(self.data, xAxis)
+
+                if not self.isXAxisSelected and xAxis in self.selectedColumns:
+                    self.selectedColumns.remove(xAxis)
+        except AttributeError as e:
+            QMessageBox.information(self, "Not implemented",
+                                    "This file type has no plotting enabled yet.",
+                                    QMessageBox.Ok)
+        except Exception as e:
+            QMessageBox.information(self, "Error",
+                                    "Couldn't plot the data:%s" % e,
+                                    QMessageBox.Ok)
+            logger.error("Couldn't plot the data.", exc_info=e)
 
     def removeSelectionTools(self):
         if hasattr(self, 'rangeSlider'):
@@ -1320,7 +1331,7 @@ class GalleryView(QTableWidget):
         return visibleCols
 
     def getColumnWithImages(self):
-        """Return the index of the column of contain images"""
+        """Return the index of the first column that contains images"""
         self.table = self.objectManager.getTable(self._tableName)
         columns = self.table.getColumns()
         for i, col in enumerate(columns):
