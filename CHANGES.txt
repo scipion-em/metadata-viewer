@@ -1,3 +1,6 @@
+- July XX, 2024 (v2.0):
+    - Adapted to show calculated fields.
+    - Some list with aliases removed
 - April 16, 2024 (v1.10)
         * Performance improvements
         * Adding invert selection

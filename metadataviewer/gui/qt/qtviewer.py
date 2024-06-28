@@ -1213,7 +1213,6 @@ class GalleryView(QTableWidget):
         self.tableNames = self.objectManager.getTableNames()
         self._table = self.objectManager.getTable(self.tableNames[0])
         self._tableName = self._table.getName()
-        self._tableAlias = self._table.getAlias()
         self._currentRow = 0
         self._currentColumn = 0
         self._lastSelectedCell = 0
@@ -1460,7 +1459,6 @@ class QTMetadataViewer(QMainWindow, IGUI):
         IGUI.__init__(self, **kwargs)
         self.tableNames = self.objectManager.getTableNames()
         self.tableName = self.tableNames[0]
-        self.tableAliases = self.objectManager.getTableAliases()
         self._pageSize = PAGE_SIZE
         self._triggeredResize = False
         self._triggeredGotoItem = True
@@ -1862,7 +1860,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
             list_view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
-            self.bockTableName.addItem(self.tableAliases[tableName])
+            self.bockTableName.addItem(tableName)
         for i in range(len(self.tableNames)):
             self.bockTableName.setItemIcon(i, QIcon(getImage(TABLE)))
             # Connect signals to the methods.
@@ -2076,18 +2074,14 @@ class QTMetadataViewer(QMainWindow, IGUI):
         """Method that control the tables when are selected in the tables
            combobox """
         tableAlias = self.bockTableName.currentText()
-        tableName = tableAlias
-        for table, alias in self.tableAliases.items():
-            if alias == tableAlias:
-                tableName = table
-                break
-        if tableName != self.table.getTableName():
+        table = self.objectManager.getTableFromAlias(tableAlias)
+        if tableAlias != self.table.getTableName():
             self.goToItem.setValue(1)
-            self.tableName = tableName
+            self.tableName = tableAlias
             self.zoom.setValue(ZOOM_SIZE)
-            self.table._createTable(tableName)
+            self.table._createTable(tableAlias)
             self._columnWithImages = self.table._columnWithImages
-            self.gallery._createGallery(tableName)
+            self.gallery._createGallery(tableAlias)
 
             if self._galleryView and self._columnWithImages:
                 self.gallery.setCurrentRowColumn(0, 0)
@@ -2102,7 +2096,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
                 else:
                     self.gotoGalleryAction.setEnabled(False)
 
-            self._rowsCount = self.objectManager.getTableRowCount(tableName)
+            self._rowsCount = self.objectManager.getTableRowCount(table.getName())
             self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
             self._updateStatusBarRowColumn()
             self._createActionButtons()

@@ -130,12 +130,13 @@ class MatrixRender(IRenderer):
 
     def _render(self, value):
         # replace nan values by 0
-        value = value.replace('nan', '0')
-        matrix = np.array(eval(value))
-        if matrix.shape == ():  # Case where eval works for value but is not a matrix or an array
+        if isinstance(value, str):
+            value = value.replace('nan', '0')
+            value = np.array(eval(value))
+        if value.shape == ():  # Case where eval works for value but is not a matrix or an array
             raise Exception("This value can be converted into a numpy array but it does not constitute a matrix or an array.")
         np.set_printoptions(precision=self._decimalNumber, suppress=True)
-        return np.around(matrix, decimals=self._decimalNumber)
+        return np.around(value, decimals=self._decimalNumber)
 
     def setDecimalNumber(self, decimalNumber):
         self._decimalNumber = decimalNumber

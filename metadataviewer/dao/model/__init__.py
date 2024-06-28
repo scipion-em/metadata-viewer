@@ -48,9 +48,6 @@ class IDAO:
     def getTableNames(self) -> list:
         pass
 
-    def getTableAliases(self) -> dict:
-        return {table: table for table in self.getTableNames()}
-
     @staticmethod
     @abstractmethod
     def getCompatibleFileTypes() -> list:

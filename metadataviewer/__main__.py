@@ -54,7 +54,7 @@ def main():
     argsList = sys.argv[1:]
     args = parser.parse_args(argsList)
 
-    logger.info('Calling metadataviewer from command line')
+    logger.info('Calling metadata viewer from command line')
     from metadataviewer.model import ObjectManager
 
     if args.extensionpath is not None:

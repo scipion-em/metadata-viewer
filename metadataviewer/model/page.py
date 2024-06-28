@@ -199,7 +199,7 @@ class Table:
 
     def getAlias(self):
         """Return the table alias"""
-        return self._alias
+        return self._alias if self._alias is not None else self._name
 
     def setAlias(self, alias):
         """Set the table alias"""
@@ -220,6 +220,10 @@ class Table:
     def getSize(self):
         """Return the table size"""
         return len(self._columns)
+
+    def configured(self):
+        """ Returns tru if it has any column defined"""
+        return self.getSize() != 0
 
     def getSortingColumnIndex(self):
         """Return the index of the column that has been ordered"""
