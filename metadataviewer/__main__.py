@@ -29,6 +29,9 @@ import sys
 import argparse
 
 import logging
+
+from metadataviewer.dao.numpy_dao import NumpyDao
+
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
@@ -66,12 +69,12 @@ def main():
         extension_module.extendMDViewer(ObjectManager)
 
     objectManager = ObjectManager()
+    objectManager.registerDAO(NumpyDao)
 
     if args.visiblelabels:
         logger.info("Visible labels: %s" % args.visiblelabels)
         args.visiblelabels += PROPERTIES_TABLE_LABELS
         objectManager.setVisibleLabels(args.visiblelabels.split(' '))
-
 
     if args.orderlabels:
         logger.info("Order labels: %s" % args.orderlabels)

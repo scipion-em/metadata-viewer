@@ -26,7 +26,7 @@
 # **************************************************************************
 
 from abc import abstractmethod
-from metadataviewer.model import Page, Table
+from metadataviewer.model import Page, Table, Column
 
 
 class IDAO:
@@ -37,7 +37,7 @@ class IDAO:
         pass
 
     @abstractmethod
-    def fillPage(self, page: Page, actualColumn: int, orderAsc: bool) -> None:
+    def fillPage(self, page: Page, actualColumn: str, orderAsc: bool) -> None:
        pass
 
     @abstractmethod
@@ -48,9 +48,9 @@ class IDAO:
     def getTableNames(self) -> list:
         pass
 
-    @staticmethod
+    @classmethod
     @abstractmethod
-    def getCompatibleFileTypes() -> list:
+    def getCompatibleFileTypes(cls) -> list:
         pass
 
     @abstractmethod

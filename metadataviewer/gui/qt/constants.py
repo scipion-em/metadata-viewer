@@ -39,6 +39,7 @@ INCREASE_DECIMALS = 'increasedecimals.png'
 TABLE_BLOCKS = 'sections.png'
 PREFERENCES = 'preferences.png'
 ZOOM_PLUS = 'zoom.png'
+APPLY_GEOMETRY = 'apply_geometry.png'
 GOTO_ITEM = 'goto_item.png'
 HIDE = 'hide.png'
 CLOSE = 'fa-close.png'
@@ -102,6 +103,7 @@ IMAGE_MENU = 'Image'
 
 BLOCKS = 'Tables'
 ZOOM = 'Size in pixels'
+APPLY_GEOMETRY_LABEL = 'Apply transformation'
 
 # ---------------------CONSTANTS-----------------
 ZOOM_SIZE = 250

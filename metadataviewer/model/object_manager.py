@@ -34,7 +34,7 @@ import csv
 from functools import lru_cache
 from abc import abstractmethod
 
-from metadataviewer.model import Table, Page, ImageRenderer
+from metadataviewer.model import Page, ImageRenderer
 
 
 class IGUI:
@@ -173,7 +173,7 @@ class ObjectManager:
 
     @lru_cache
     def getPage(self, tableName: str, pageNumber: int, pageSize: int,
-                actualColumn = 0,  orderAsc = True):
+                actualColumn='id',  orderAsc=True):
         """
         Method to retrieve a specific page from the tableName
         :param tableName: name of the table(block) in the file
@@ -204,7 +204,7 @@ class ObjectManager:
             currentRow = 0
         pageNumber = self.getNumberPageFromRow(currentRow)
         page = self.getPage(table.getName(), pageNumber, self._pageSize,
-                            table.getSortingColumnIndex(),
+                            table.getSortingColumn(),
                             table.isSortingAsc())
         rowPosition = currentRow % self.getPageSize()
         if rowPosition == page.getSize():
@@ -249,9 +249,12 @@ class ObjectManager:
         if not self._tables:
             self._tables = self._dao.getTables()
         return self._tables
-    def getTableNames(self):
-        return [table.getAlias() for table in self.getTables().values()]
 
+    def getTableNames(self):
+        return [table.getName() for table in self.getTables().values()]
+
+    def getTableAliases(self):
+        return [table.getAlias() for table in self.getTables().values()]
 
     def getTableRowCount(self, tableName: str):
         return self._dao.getTableRowCount(tableName)
@@ -293,10 +296,11 @@ class ObjectManager:
                 return self.getTable(table.getName())
 
         raise Exception("Table alias %s does not match any available table." % alias)
+
     def sort(self, tableName, column, reverse=True):
         """Store the table sort preferences"""
         table = self.getTable(tableName)
-        table.setSortingColumnIndex(column)
+        table.setSortingColumn(column)
         table.setSortingAsc(reverse)
 
     def getTableWithAdditionalInfo(self):
