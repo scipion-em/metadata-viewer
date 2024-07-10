@@ -245,7 +245,7 @@ class ObjectManager:
             table.getSelection().addRowSelected(rowId, remove=remove)
 
     def getTables(self):
-        """Return the tables. Tables at least should have the name. Optionally the alias. Table definition  could come later"""
+        """Return a dictionary with the Tables. The key should be the table name. Tables at least should have the name. Optionally the alias. Table definition  could come later"""
         if not self._tables:
             self._tables = self._dao.getTables()
         return self._tables

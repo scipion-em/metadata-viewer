@@ -45,7 +45,7 @@ class IDAO:
         pass
 
     @abstractmethod
-    def getTableNames(self) -> list:
+    def getTables(self) -> list:
         pass
 
     @classmethod
