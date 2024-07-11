@@ -1,4 +1,4 @@
-- July XX, 2024 (v2.0):
+- July 11, 2024 (v2.0):
     - Adapted to show calculated fields.
     - Some list with aliases removed
     - Allowing to apply transformation to the images
