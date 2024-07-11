@@ -60,12 +60,12 @@ class IRenderer:
         return self._extraActions
 
     @abstractmethod
-    def _render(self, value):
+    def _render(self, value, row):
         pass
 
-    def render(self, value):
+    def render(self, value, row):
         try:
-            return self._render(value)
+            return self._render(value, row)
         except Exception as e:
             logger.info("It is not possible to assign a renderer to this "
                         "value. It will be rendered as a string: %s" % e)
@@ -78,7 +78,7 @@ class IRenderer:
 
 class StrRenderer(IRenderer):
 
-    def _render(self, value):
+    def _render(self, value, row):
         return str(value)
 
     def renderType(self):
@@ -87,7 +87,7 @@ class StrRenderer(IRenderer):
 
 class IntRenderer(IRenderer):
 
-    def _render(self, value):
+    def _render(self, value, row):
         return int(value)
 
     def renderType(self):
@@ -100,7 +100,7 @@ class FloatRenderer(IRenderer):
         super().__init__()
         self._decimalNumber = decimalNumber
 
-    def _render(self, value):
+    def _render(self, value, row):
         return round(float(value), self._decimalNumber)
 
     def setDecimalNumber(self, decimalNumber):
@@ -115,7 +115,7 @@ class FloatRenderer(IRenderer):
 
 class BoolRenderer(IRenderer):
 
-    def _render(self, value):
+    def _render(self, value, row):
         return bool(value)
 
     def renderType(self):
@@ -128,14 +128,15 @@ class MatrixRender(IRenderer):
         super().__init__()
         self._decimalNumber = decimalNumber
 
-    def _render(self, value):
+    def _render(self, value, row):
         # replace nan values by 0
-        value = value.replace('nan', '0')
-        matrix = np.array(eval(value))
-        if matrix.shape == ():  # Case where eval works for value but is not a matrix or an array
+        if isinstance(value, str):
+            value = value.replace('nan', '0')
+            value = np.array(eval(value))
+        if value.shape == ():  # Case where eval works for value but is not a matrix or an array
             raise Exception("This value can be converted into a numpy array but it does not constitute a matrix or an array.")
         np.set_printoptions(precision=self._decimalNumber, suppress=True)
-        return np.around(matrix, decimals=self._decimalNumber)
+        return np.around(value, decimals=self._decimalNumber)
 
     def setDecimalNumber(self, decimalNumber):
         self._decimalNumber = decimalNumber
@@ -172,12 +173,23 @@ class PILImageReader(ImageReader):
 class ImageRenderer(IRenderer):
     _imageReaders = []
 
-    def __init__(self, size=IMAGE_DEFAULT_SIZE):
+    def __init__(self, size=IMAGE_DEFAULT_SIZE, rotColumnIndex=None):
         super().__init__()
         self._size = size
+        self._rotColumnIndex = rotColumnIndex  # index in the row values where rotation can be found
+        self._applyTransformation = False
 
     def getSize(self):
         return self._size
+
+    def setRotationColumnIndex(self, rotColumnIndex):
+        self._rotColumnIndex = rotColumnIndex
+
+    def setApplyTransformation(self, applyTransformation):
+        self._applyTransformation = applyTransformation
+
+    def hasTransformation(self):
+        return self._rotColumnIndex is not None
 
     @classmethod
     def registerImageReader(cls, imageReader):
@@ -194,16 +206,20 @@ class ImageRenderer(IRenderer):
     def setSize(self, size):
         self._size = size
 
-    def _render(self, value):
-        return self._renderWithSize(value, self._size)
+    def _render(self, value, row):
+        rotationAngle = 0
+        if row and self._rotColumnIndex and self._applyTransformation:
+            rotationAngle = row[self._rotColumnIndex]
+        return self._renderWithSize(value, self._size, rotationAngle)
 
     @lru_cache
-    def _renderWithSize(self, value, size):
+    def _renderWithSize(self, value, size, rotationAngle):
         imageReader = self.getImageReader(value)
         image = imageReader.open(value)
         sizeX, sizeY = image.size
         imageR = image.resize((size, int(size*sizeY/sizeX)))
         imageR.thumbnail((size, size))
+        imageR = imageR.rotate(rotationAngle, fillcolor='gray')
         return imageR
 
     def renderType(self):

@@ -165,7 +165,7 @@ class Table:
         self._name = name
         self._alias = None
         self._columns = columns or list()
-        self._sortingColumnIndex = 0
+        self._sortingColumn = None
         self._sortingAsc = True
         self._sortingChanged = False
         self._actions = []
@@ -199,7 +199,7 @@ class Table:
 
     def getAlias(self):
         """Return the table alias"""
-        return self._alias
+        return self._alias if self._alias is not None else self._name
 
     def setAlias(self, alias):
         """Set the table alias"""
@@ -221,17 +221,21 @@ class Table:
         """Return the table size"""
         return len(self._columns)
 
-    def getSortingColumnIndex(self):
-        """Return the index of the column that has been ordered"""
-        return self._sortingColumnIndex
+    def configured(self):
+        """ Returns tru if it has any column defined"""
+        return self.getSize() != 0
+
+    def getSortingColumn(self):
+        """Return the column that has been ordered"""
+        return self._sortingColumn
 
     def isSortingAsc(self):
-        """Return if the column has been ordered ascendingly"""
+        """Return if the column has been ordered ascending"""
         return self._sortingAsc
 
-    def setSortingColumnIndex(self, index):
-        """Update the sorted column index"""
-        self._sortingColumnIndex = index
+    def setSortingColumn(self, column):
+        """Update the sorted column"""
+        self._sortingColumn = column
         self._sortingChanged = True
 
     def setSortingAsc(self, ascending):
@@ -242,6 +246,12 @@ class Table:
     def addColumn(self, column):
         """Add a given column"""
         self._columns.append(column)
+
+    def getColumnIndexFromLabel(self, label):
+        for index, column in enumerate(self._columns):
+            if column.getName() == label:
+                return index
+        return -1
 
     def createColumns(self, columns, values):
         """
@@ -334,28 +344,28 @@ def _guessRenderer(strValue):
     try:
         logger.debug("Trying to convert the value to an integer...")
         renderer = IntRenderer()
-        renderer._render(strValue)
+        renderer._render(strValue, None)
         return renderer
     except ValueError:
         try:
             logger.debug("Integer conversion failed...")
             logger.debug("Trying to convert the value to a float...")
             renderer = FloatRenderer()
-            renderer._render(strValue)
+            renderer._render(strValue, None)
             return FloatRenderer()
         except ValueError:
             try:
                 logger.debug("Float conversion failed...")
                 logger.debug("Trying to convert the value to an image...")
                 renderer = ImageRenderer()
-                renderer._render(strValue)
+                renderer._render(strValue, None)
                 return renderer
             except Exception:
                 try:
                     logger.debug("Image conversion failed...")
                     logger.debug("Trying to convert the value to a Matrix...")
                     renderer = MatrixRender()
-                    renderer._render(strValue)
+                    renderer._render(strValue, None)
                     return renderer
                 except Exception:
                     logger.debug("Image conversion failed...")
