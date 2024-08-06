@@ -34,7 +34,7 @@ import csv
 from functools import lru_cache
 from abc import abstractmethod
 
-from metadataviewer.model import Table, Page, ImageRenderer
+from metadataviewer.model import Page, ImageRenderer
 
 
 class IGUI:
@@ -83,6 +83,9 @@ class ObjectManager:
 
     def open(self, args):
         self._fileName = args.fileName
+
+        if not os.path.exists(self._fileName):
+            sys.exit("File %s does not exists. Can't continue." % self._fileName)
         self.selectDAO()
         if not self._gui:
             from metadataviewer.gui.qt.qtviewer import QTMetadataViewer
@@ -164,20 +167,13 @@ class ObjectManager:
         """Return the page number"""
         return self._pageNumber
 
-    def createTable(self, tableName: str):
-        """Create a table"""
-        self._tableName = tableName
-        table = Table(tableName)
-        self._dao.fillTable(table, self)
-        return table
-
     def hasColumnId(self, tableName):
         table = self.getTable(tableName)
         return table.hasColumnId()
 
     @lru_cache
     def getPage(self, tableName: str, pageNumber: int, pageSize: int,
-                actualColumn = 0,  orderAsc = True):
+                actualColumn='id',  orderAsc=True):
         """
         Method to retrieve a specific page from the tableName
         :param tableName: name of the table(block) in the file
@@ -208,7 +204,7 @@ class ObjectManager:
             currentRow = 0
         pageNumber = self.getNumberPageFromRow(currentRow)
         page = self.getPage(table.getName(), pageNumber, self._pageSize,
-                            table.getSortingColumnIndex(),
+                            table.getSortingColumn(),
                             table.isSortingAsc())
         rowPosition = currentRow % self.getPageSize()
         if rowPosition == page.getSize():
@@ -248,13 +244,17 @@ class ObjectManager:
         for i, rowId in enumerate(selectedRange):
             table.getSelection().addRowSelected(rowId, remove=remove)
 
+    def getTables(self):
+        """Return a dictionary with the Tables. The key should be the table name. Tables at least should have the name. Optionally the alias. Table definition  could come later"""
+        if not self._tables:
+            self._tables = self._dao.getTables()
+        return self._tables
+
     def getTableNames(self):
-        """Return the table names"""
-        return self._dao.getTableNames()
+        return [table.getName() for table in self.getTables().values()]
 
     def getTableAliases(self):
-        """Return the tables aliases"""
-        return self._dao.getTableAliases()
+        return [table.getAlias() for table in self.getTables().values()]
 
     def getTableRowCount(self, tableName: str):
         return self._dao.getTableRowCount(tableName)
@@ -275,19 +275,32 @@ class ObjectManager:
     def getTable(self, tableName: str):
         """Returns a table if it is stored, otherwise a new table is
            created. """
-        if tableName not in self._tables:
-            table = self.createTable(tableName)
-            self.setColumnsIndex(table)
-            self._tables[tableName] = table
-        else:
-            table = self._tables[tableName]
 
-        return table
+        table = self._tables.get(tableName, None)
+        if table is not None:
+
+            if table.configured():
+                return table
+            else:
+                self._dao.fillTable(table, self)
+                self.setColumnsIndex(table)
+                return table
+        else:
+            raise Exception("Table %s not present in the list of tables." % tableName)
+
+    def getTableFromAlias(self, alias):
+        """ Returns the table that matches the alias or raises an exception"""
+
+        for table in self.getTables().values():
+            if alias == table.getAlias():
+                return self.getTable(table.getName())
+
+        raise Exception("Table alias %s does not match any available table." % alias)
 
     def sort(self, tableName, column, reverse=True):
         """Store the table sort preferences"""
         table = self.getTable(tableName)
-        table.setSortingColumnIndex(column)
+        table.setSortingColumn(column)
         table.setSortingAsc(reverse)
 
     def getTableWithAdditionalInfo(self):

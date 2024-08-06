@@ -26,7 +26,7 @@
 # **************************************************************************
 
 from abc import abstractmethod
-from metadataviewer.model import Page, Table
+from metadataviewer.model import Page, Table, Column
 
 
 class IDAO:
@@ -37,7 +37,7 @@ class IDAO:
         pass
 
     @abstractmethod
-    def fillPage(self, page: Page, actualColumn: int, orderAsc: bool) -> None:
+    def fillPage(self, page: Page, actualColumn: str, orderAsc: bool) -> None:
        pass
 
     @abstractmethod
@@ -45,20 +45,12 @@ class IDAO:
         pass
 
     @abstractmethod
-    def getTableNames(self) -> list:
+    def getTables(self) -> list:
         pass
 
+    @classmethod
     @abstractmethod
-    def getTableAliases(self) -> dict:
-        pass
-
-    @abstractmethod
-    def sort(self, tableName, column, reverse=True) -> None:
-        pass
-
-    @staticmethod
-    @abstractmethod
-    def getCompatibleFileTypes() -> list:
+    def getCompatibleFileTypes(cls) -> list:
         pass
 
     @abstractmethod
@@ -72,5 +64,11 @@ class IDAO:
     @abstractmethod
     def getSelectedRangeRowsIds(self, tableName, startRow, numberOfRows, column, reverse=True) -> list:
         pass
+
+    @abstractmethod
+    def getColumnsValues(self, tableName, columns, xAxis, selection, limit,
+                         useSelection, reverse=True):
+        pass
+
 
 

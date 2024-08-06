@@ -404,37 +404,48 @@ class PlotColumns(QDialog):
 
     def plotSelectedColumns(self):
         """Plot a selected columns"""
-        self.removeSelectionTools()
-        self.oldMinValue, self.oldMaxValue = None, None
-        self.ax.cla()
-        self.setPlotWidget()
-        xAxis = self.xAxis.currentText()
-        self.isXAxisSelected = xAxis in self.selectedColumns
-        if xAxis:
-            self.ax.set_xlabel(xAxis)
-            self.canvas.draw()
 
-        if self.selectedColumns:
-            self.plotInfo.setVisible(False)
-            self.loadingDataLabel.setVisible(True)
-            self.repaint()
-            self.data = self._table.objectManager.getColumnsValues(self._table.getTableName(),
-                                                              self.selectedColumns,
-                                                              xAxis,
-                                                              self.selection,
-                                                              self._limit,
-                                                              self._useSelection)
-            self.loadingDataLabel.setVisible(False)
-            self.showPlotInfo()
-            if self.type.currentText() == PLOT_LABEL:
-                self.plotData(self.data, xAxis)
-            elif self.type.currentText() == HISTOGRAM_LABEL:
-                self.plotHistogram(self.data, xAxis)
-            elif self.type.currentText() == SCATTER_LABEL:
-                self.plotScatter(self.data, xAxis)
+        try:
+            self.removeSelectionTools()
+            self.oldMinValue, self.oldMaxValue = None, None
+            self.ax.cla()
+            self.setPlotWidget()
+            xAxis = self.xAxis.currentText()
+            self.isXAxisSelected = xAxis in self.selectedColumns
+            if xAxis:
+                self.ax.set_xlabel(xAxis)
+                self.canvas.draw()
 
-            if not self.isXAxisSelected and xAxis in self.selectedColumns:
-                self.selectedColumns.remove(xAxis)
+            if self.selectedColumns:
+                self.plotInfo.setVisible(False)
+                self.loadingDataLabel.setVisible(True)
+                self.repaint()
+                self.data = self._table.objectManager.getColumnsValues(self._table.getTableName(),
+                                                                  self.selectedColumns,
+                                                                  xAxis,
+                                                                  self.selection,
+                                                                  self._limit,
+                                                                  self._useSelection)
+                self.loadingDataLabel.setVisible(False)
+                self.showPlotInfo()
+                if self.type.currentText() == PLOT_LABEL:
+                    self.plotData(self.data, xAxis)
+                elif self.type.currentText() == HISTOGRAM_LABEL:
+                    self.plotHistogram(self.data, xAxis)
+                elif self.type.currentText() == SCATTER_LABEL:
+                    self.plotScatter(self.data, xAxis)
+
+                if not self.isXAxisSelected and xAxis in self.selectedColumns:
+                    self.selectedColumns.remove(xAxis)
+        except AttributeError as e:
+            QMessageBox.information(self, "Not implemented",
+                                    "This file type has no plotting enabled yet.",
+                                    QMessageBox.Ok)
+        except Exception as e:
+            QMessageBox.information(self, "Error",
+                                    "Couldn't plot the data:%s" % e,
+                                    QMessageBox.Ok)
+            logger.error("Couldn't plot the data.", exc_info=e)
 
     def removeSelectionTools(self):
         if hasattr(self, 'rangeSlider'):
@@ -594,6 +605,7 @@ class PlotColumns(QDialog):
 
     def showSelector(self):
         return len(self.selectedColumns) == 1 or (not self.selectedColumns and self.isColumnIdSelected)
+
 
 class ColumnPropertiesTable(QDialog):
     """ Class to handle the columns properties (visible, render, edit) """
@@ -802,7 +814,7 @@ class CustomWidget(QWidget):
             self._layout.addWidget(self._label, alignment=Qt.AlignCenter)
             self._type = bool
 
-        elif isinstance(data, int) or isinstance(data, float) or isinstance(data, str):  # The data is a int, float or str
+        elif isinstance(data, int) or isinstance(data, float) or isinstance(data, str):  # The data is an int, float or str
             if not isinstance(data, str):
                 self._type = int if isinstance(data, int) else float
             self._label.setText(str(data))
@@ -810,32 +822,11 @@ class CustomWidget(QWidget):
 
         elif isinstance(data, np.ndarray):  # The data is a Matrix or a CsvList
             self._type = np.ndarray
-            tableArray = QTableWidget()
             shape = data.shape
             if len(shape) == 2:  # Assuming the data is a Matrix
-                numRows, numCols = shape
-                tableArray.setRowCount(numRows)
-                tableArray.setColumnCount(numCols)
-                tableArray.horizontalHeader().hide()
-                tableArray.verticalHeader().hide()
-                tableArray.setEditTriggers(QTableWidget.NoEditTriggers)
-                tableArray.setShowGrid(False)
-                tableArray.setStyleSheet("QTableWidget { border: none; } "
-                                         "QTableWidget::item { border: none; }")
-                tableArray.setSelectionMode(QAbstractItemView.NoSelection)
-
-                tableArray.setMaximumHeight(100)
-                for i in range(numRows):
-                    for j in range(numCols):
-                        if numRows > 1:
-                            item = QTableWidgetItem(str(data[i, j]))
-                        else:
-                           item = QTableWidgetItem(str(data[j]))
-                        tableArray.setItem(i, j, item)
-                        tableArray.item(i, j).setTextAlignment(Qt.AlignRight)
-                    tableArray.resizeColumnsToContents()
-                tableArray.resizeRowsToContents()
-                self._layout.addWidget(tableArray, alignment=Qt.AlignCenter | Qt.AlignCenter)
+                formattedMatrix = '\n'.join([' '.join(f"{item:10.2f}" for item in row) for row in data])
+                self._label.setText(formattedMatrix)
+                self._layout.addWidget(self._label, alignment=Qt.AlignCenter | Qt.AlignCenter)
             else:  # Assuming the data is a CsvList
                 self._label.setText(str(data))
                 self._layout.addWidget(self._label, alignment=Qt.AlignRight)
@@ -903,6 +894,7 @@ class TableView(QTableWidget):
         self.objectManager = objectManager
         self.setSelectionBehavior(QTableWidget.SelectRows)
         self._oldzoom = ZOOM_SIZE
+        self._hasTransformation = False
 
     def createPlotDialog(self):
         self.plotDialog = PlotColumns(self, self)
@@ -995,10 +987,17 @@ class TableView(QTableWidget):
 
     def getColumnWithImages(self):
         """Return the index of the column that represent an image"""
+        self._hasTransformation = False
         for i, col in enumerate(self.columns):
-            if col.getRenderer().renderType() == Image:
+            render = col.getRenderer()
+            if render.renderType() == Image:
+                if render.hasTransformation():
+                    self._hasTransformation = True
                 return i
         return None
+
+    def hasTransformation(self):
+        return self._hasTransformation is True
 
     def getApplyImageAutocontrast(self):
         """Return the applyImageAutocontrast parameter value"""
@@ -1018,22 +1017,24 @@ class TableView(QTableWidget):
 
     def orderByColumn(self, column, order):
         """Ordering a given column in a order mode(ASC, DESC)"""
-        self._orderAsc = order
-        self._sortedColumn = column
-        if self._lastSelectedColumn is not None:
-            self.horizontalHeaderItem(self._lastSelectedColumn).setIcon(QIcon(None))
+        if self.getColumns()[column].isSorteable():
+            self._orderAsc = order
+            self._sortedColumn = column
+            if self._lastSelectedColumn is not None:
+                self.horizontalHeaderItem(self._lastSelectedColumn).setIcon(QIcon(None))
 
-        self._lastSelectedColumn = self._currentColumn
-        self._currentColumn = column
+            self._lastSelectedColumn = self._currentColumn
+            self._currentColumn = column
 
-        self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
-        self.objectManager.sort(self._tableName, column, self._orderAsc)
-        self.clearContents()
-        self.vScrollBar.setValue(0)
-        self._loadRows()
+            self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+            columnName = self.horizontalHeaderItem(column).text()
+            self.objectManager.sort(self._tableName, columnName, self._orderAsc)
+            # self.clearContents()
+            self.vScrollBar.setValue(0)
+            self._loadRows()
 
-        icon = QIcon(getImage(DOWN_ARROW)) if self._orderAsc else QIcon(getImage(UP_ARROW))
-        self.horizontalHeaderItem(column).setIcon(icon)
+            icon = QIcon(getImage(DOWN_ARROW)) if self._orderAsc else QIcon(getImage(UP_ARROW))
+            self.horizontalHeaderItem(column).setIcon(icon)
 
     def _createHeader(self):
         """Create the table header"""
@@ -1092,11 +1093,11 @@ class TableView(QTableWidget):
                 if self.propertiesTableDialog.visibleCheckBoxList[column.getIndex()]:
                     renderer = column.getRenderer()
                     if renderer.renderType() != Image:
-                        item = renderer.render(values[col])
+                        item = renderer.render(values[col], values)
                         widget = CustomWidget(item, row.getId(), values[col])
                     else:
                         if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
-                            item = renderer.render(values[col])
+                            item = renderer.render(values[col], values)
                             if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                                 text = self.composeAdditionaInfo(row)
                                 widget = CustomWidget(item, row.getId(),
@@ -1160,10 +1161,10 @@ class TableView(QTableWidget):
         currentRowIndex = self.vScrollBar.value() - 1
         currenctColumnIndex = self.hScrollBar.value()
         visibleRows = self._calculateVisibleRows() + 1
-        rows = self.objectManager.getRows(self._tableName, currentRowIndex,
+        self.rows = self.objectManager.getRows(self._tableName, currentRowIndex,
                                          visibleRows)
         self.clearSelection()
-        self._addRows(rows, currentRowIndex, currenctColumnIndex)
+        self._addRows(self.rows, currentRowIndex, currenctColumnIndex)
 
     def getCurrentColumn(self):
         """Get the current column"""
@@ -1202,7 +1203,6 @@ class GalleryView(QTableWidget):
         self.tableNames = self.objectManager.getTableNames()
         self._table = self.objectManager.getTable(self.tableNames[0])
         self._tableName = self._table.getName()
-        self._tableAlias = self._table.getAlias()
         self._currentRow = 0
         self._currentColumn = 0
         self._lastSelectedCell = 0
@@ -1320,7 +1320,7 @@ class GalleryView(QTableWidget):
         return visibleCols
 
     def getColumnWithImages(self):
-        """Return the index of the column of contain images"""
+        """Return the index of the first column that contains images"""
         self.table = self.objectManager.getTable(self._tableName)
         columns = self.table.getColumns()
         for i, col in enumerate(columns):
@@ -1337,7 +1337,7 @@ class GalleryView(QTableWidget):
     def _addImages(self, rows, currentValue, visibleRows, seekFirstImage):
         """Add images to the gallery"""
         renderer = self.getRenderer()
-        rowsValues = [row.getValues()[self._columnWithImages] for row in rows]
+        rowsValues = [row.getValues() for row in rows]
         countImages = 0
         selection = self.getTable().getSelection().getSelection()
         if self._columnWithImages:
@@ -1345,8 +1345,8 @@ class GalleryView(QTableWidget):
                 for col in range(self._columnsCount):
                     if seekFirstImage + countImages == self._tableSize:
                         break
-                    value = rowsValues[countImages]
-                    item = renderer.render(value)
+                    value = rowsValues[countImages][self._columnWithImages]
+                    item = renderer.render(value, rowsValues[countImages])
                     currentRow = rows[countImages]
                     if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
                         text = self.composeAdditionaInfo(currentRow)
@@ -1447,9 +1447,8 @@ class QTMetadataViewer(QMainWindow, IGUI):
     def __init__(self, **kwargs):
         QMainWindow.__init__(self)
         IGUI.__init__(self, **kwargs)
-        self.tableNames = self.objectManager.getTableNames()
-        self.tableName = self.tableNames[0]
-        self.tableAliases = self.objectManager.getTableAliases()
+        self.tableNames = self.objectManager.getTableAliases()
+        self.tableName = self.objectManager.getTableFromAlias(self.tableNames[0]).getName()
         self._pageSize = PAGE_SIZE
         self._triggeredResize = False
         self._triggeredGotoItem = True
@@ -1658,11 +1657,17 @@ class QTMetadataViewer(QMainWindow, IGUI):
     def _updateStatusBarRowColumn(self):
         """Update the status bar information for the current row and column"""
         row = self.gallery.getCurrentRow() if self._galleryView else self.table.getCurrentRow()
-        column = self.gallery.getCurrentColumn() if self._galleryView else self.table.getCurrentColumn()
+        columnIndex = self.gallery.getCurrentColumn() if self._galleryView else self.table.getCurrentColumn()
+        self.statusBarCurrentRowColumn.setStyleSheet(f"color: '';")
         if self._galleryView:
-            self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {column + 1}")
+            self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {columnIndex + 1}")
         else:
-            self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {self.table.getColumns()[column].getName()}")
+            column = self.table.getColumns()[columnIndex]
+            columnLabel = column.getName()
+            if not column.isSorteable():
+                self.statusBarCurrentRowColumn.setStyleSheet(f"color: {'red'};")
+                columnLabel += ' (not sortable)'
+            self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {columnLabel}")
 
     def _updateStatusBarSelectedRows(self):
         """Update the status bar information for the number of selected rows"""
@@ -1780,7 +1785,14 @@ class QTMetadataViewer(QMainWindow, IGUI):
         self.gotoGalleryAction.setIcon(QIcon(getImage(GALLERY_VIEW)))
         self.gotoGalleryAction.triggered.connect(self._loadGalleryView)
 
-        # Columns  Toolbar action
+        # Columns Toolbar action
+
+        self.applyTransformation = QAction(APPLY_GEOMETRY_LABEL, self)
+        self.applyTransformation.setCheckable(True)
+        self.applyTransformation.setIcon(QIcon(getImage(APPLY_GEOMETRY)))
+        self.applyTransformation.setEnabled(self.table.hasTransformation())
+        self.applyTransformation.triggered.connect(self._applyTransformation)
+
         self.reduceDecimals = QAction(REDUCE_DECIMALS_TEXT, self)
         self.reduceDecimals.setIcon(QIcon(getImage(REDUCE_DECIMALS)))
         self.reduceDecimals.setEnabled(False)
@@ -1851,7 +1863,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
             list_view.setVerticalScrollBarPolicy(Qt.ScrollBarAsNeeded)
         self.bockTableName.setFixedWidth(200)
         for tableName in self.tableNames:
-            self.bockTableName.addItem(self.tableAliases[tableName])
+            self.bockTableName.addItem(tableName)
         for i in range(len(self.tableNames)):
             self.bockTableName.setItemIcon(i, QIcon(getImage(TABLE)))
             # Connect signals to the methods.
@@ -1895,6 +1907,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
 
         columnsToolBar2.addWidget(self.zoomLabel)
         columnsToolBar2.addWidget(self.zoom)
+        columnsToolBar2.addAction(self.applyTransformation)
         columnsToolBar2.addAction(self.sortUp)
         columnsToolBar2.addAction(self.sortDown)
         columnsToolBar2.addSeparator()
@@ -2065,12 +2078,9 @@ class QTMetadataViewer(QMainWindow, IGUI):
         """Method that control the tables when are selected in the tables
            combobox """
         tableAlias = self.bockTableName.currentText()
-        tableName = tableAlias
-        for table, alias in self.tableAliases.items():
-            if alias == tableAlias:
-                tableName = table
-                break
-        if tableName != self.table.getTableName():
+        table = self.objectManager.getTableFromAlias(tableAlias)
+        tableName = table.getName()
+        if tableAlias != self.table.getTable().getAlias():
             self.goToItem.setValue(1)
             self.tableName = tableName
             self.zoom.setValue(ZOOM_SIZE)
@@ -2091,7 +2101,10 @@ class QTMetadataViewer(QMainWindow, IGUI):
                 else:
                     self.gotoGalleryAction.setEnabled(False)
 
-            self._rowsCount = self.objectManager.getTableRowCount(tableName)
+            self.applyTransformation.setEnabled(self.table.hasTransformation())
+            self.applyTransformation.setChecked(False)
+
+            self._rowsCount = self.objectManager.getTableRowCount(table.getName())
             self.setWindowTitle("Metadata: " + os.path.basename(self._fileName) + " (%s items)" % self._rowsCount)
             self._updateStatusBarRowColumn()
             self._createActionButtons()
@@ -2288,6 +2301,17 @@ class QTMetadataViewer(QMainWindow, IGUI):
         if decimals + redInc > 0:
             self.table.getColumns()[column].getRenderer().setDecimalNumber(decimals + redInc)
             self.table._loadRows()
+
+    def _applyTransformation(self, checked):
+        column = self.table._columnWithImages
+        if self._galleryView:
+            self.gallery.getColumns()[column].getRenderer().setApplyTransformation(checked)
+            self.gallery._loadImages()
+        else:
+            self.table.getColumns()[column].getRenderer().setApplyTransformation(checked)
+            self.table._loadRows()
+
+
 
 
 
