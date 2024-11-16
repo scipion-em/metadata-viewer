@@ -307,9 +307,10 @@ class PlotColumns(QDialog):
         row = 0
         self.tableWidget.setRowCount(numRows)
         for i in range(numRows):
-            if isinstance(self.columns[i].getRenderer(), IntRenderer) or \
-                    isinstance(self.columns[i].getRenderer(), FloatRenderer):
-                columName = self.columns[i].getName()
+            column = self.columns[i]
+            if column.isSorteable() and (isinstance(column.getRenderer(), IntRenderer) or
+                                         isinstance(column.getRenderer(), FloatRenderer)):
+                columName = column.getName()
                 self.addRow(row, columName)
                 row += 1
                 self.plottableColumns[columName] = row
@@ -730,10 +731,10 @@ class ColumnPropertiesTable(QDialog):
     def hideColumns(self):
         """Method to hide a table columns """
         for column in range(self._table.columnCount()):
-            if not self.visibleCheckBoxList[column].isChecked():
-                self._table.horizontalHeaderItem(column).setCheckState(True)
-            else:
-                self._table.horizontalHeaderItem(column).setCheckState(False)
+            checkState = self.visibleCheckBoxList[column].isChecked()
+            self._table.horizontalHeaderItem(column).setCheckState(not checkState)
+            if self._table.getColumnsOrder()[column] in self._table.getColumnsMap():
+                self._table.getColumnsMap()[self._table.getColumnsOrder()[column]][1].setIsVisible(checkState)
 
         for column, checkBox in enumerate(self.visibleCheckBoxList):
             display = not checkBox.isChecked()
@@ -916,6 +917,7 @@ class TableView(QTableWidget):
         self.vScrollBar = CustomScrollBar()
         self.hScrollBar = QScrollBar()
         self._columnsMap = {}
+        self._columnsOrder = self.objectManager.getColumnsOrder(tableName)
         self._createHeader()
         self._table = self.objectManager.getTable(self._tableName)
         self.columns = self._table.getColumns()
@@ -956,6 +958,12 @@ class TableView(QTableWidget):
 
     def getSortedColumn(self):
         return self._sortedColumn
+
+    def getColumnsOrder(self):
+        return self._columnsOrder
+
+    def getColumnsMap(self):
+        return self._columnsMap
 
     def getOldZoom(self):
         """Return the old table zoom value"""
@@ -1017,7 +1025,11 @@ class TableView(QTableWidget):
 
     def orderByColumn(self, column, order):
         """Ordering a given column in a order mode(ASC, DESC)"""
-        if self.getColumns()[column].isSorteable():
+
+        self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
+        columnName = self.horizontalHeaderItem(column).text()
+        col = self.getColumnsMap()[columnName][1]
+        if col.isSorteable():
             self._orderAsc = order
             self._sortedColumn = column
             if self._lastSelectedColumn is not None:
@@ -1026,8 +1038,6 @@ class TableView(QTableWidget):
             self._lastSelectedColumn = self._currentColumn
             self._currentColumn = column
 
-            self.horizontalHeader().setSortIndicator(column, Qt.AscendingOrder if self._orderAsc else Qt.DescendingOrder)
-            columnName = self.horizontalHeaderItem(column).text()
             self.objectManager.sort(self._tableName, columnName, self._orderAsc)
             # self.clearContents()
             self.vScrollBar.setValue(0)
@@ -1042,7 +1052,7 @@ class TableView(QTableWidget):
         self._columns = table.getColumns()
         self.setColumnCount(len(self._columns))
         for i, column in enumerate(self._columns):
-            self._columnsMap[column.getName()] = i
+            self._columnsMap[column.getName()] = (i, column)
             item = QTableWidgetItem(str(column.getName()))
             item.setTextAlignment(Qt.AlignCenter)
             self.setHorizontalHeaderItem(self._columns[i].getIndex(), item)
@@ -1059,12 +1069,15 @@ class TableView(QTableWidget):
         """Method tha calculate how many columns are visible"""
         viewportWidth = self.parent().width() if self.parent() else self.viewport().width()
         visibleCols = 0
+        columnX = 0
 
         for col in range(self.columnCount()):
-            columnaX = self.columnViewportPosition(col)
-            widthColumna = self.columnWidth(col)
-            if columnaX < viewportWidth and columnaX + widthColumna > 0:
+            width = self.calculateColumnWidth(None, col)
+            columnX += width
+            if columnX < viewportWidth:
                 visibleCols += 1
+            else:
+                break
         return visibleCols + 1
 
     def _calculateVisibleRows(self):
@@ -1077,9 +1090,7 @@ class TableView(QTableWidget):
     def _addRows(self, rows, currentRowIndex, currenctColumnIndex):
         """Add rows to the table"""
         columnsCount = self._calculateVisibleColumns()
-        endColumn = currenctColumnIndex + columnsCount
-        if endColumn > len(self._columns):
-            endColumn = len(self._columns)
+        endColumn = len(self._columns)
 
         for i in range(len(rows)):
             row = rows[i]
@@ -1088,44 +1099,50 @@ class TableView(QTableWidget):
                 self.setRangeSelected(QTableWidgetSelectionRange(i + currentRowIndex,
                                                                  0, i + currentRowIndex,
                                                                  self.columnCount() - 1), True)
+            filledColumns = columnsCount
             for col in range(currenctColumnIndex, endColumn):
-                column = self._columns[col]
-                if self.propertiesTableDialog.visibleCheckBoxList[column.getIndex()]:
-                    renderer = column.getRenderer()
-                    if renderer.renderType() != Image:
-                        item = renderer.render(values[col], values)
-                        widget = CustomWidget(item, row.getId(), values[col])
-                    else:
-                        if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
-                            item = renderer.render(values[col], values)
-                            if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
-                                text = self.composeAdditionaInfo(row)
-                                widget = CustomWidget(item, row.getId(),
-                                                      values[col],
-                                                      addText=True, text=text,
-                                                      autocontrast=self.getApplyImageAutocontrast(),
-                                                      gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
-                            else:
-                                widget = CustomWidget(item, row.getId(),
-                                                      values[col],
-                                                      autocontrast=self.getApplyImageAutocontrast(),
-                                                      gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
+                if self._columnsOrder[col] in self._columnsMap:
+                    valueIndex, column = self._columnsMap[self._columnsOrder[col]]
+                    if column.isVisible():
+                        filledColumns -= 1
+                        renderer = column.getRenderer()
+                        if renderer.renderType() != Image:
+                            item = renderer.render(values[valueIndex], values)
+                            widget = CustomWidget(item, row.getId(), values[valueIndex])
                         else:
-                            item = values[col]
-                            widget = CustomWidget(item, row.getId(),
-                                                  values[col],
-                                                  autocontrast=self.getApplyImageAutocontrast(),
-                                                  gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
+                            if self.propertiesTableDialog.renderCheckBoxList[column.getIndex()].isChecked():
+                                item = renderer.render(values[valueIndex], values)
+                                if self.tableWithAdditionalInfo and self._tableName == self.tableWithAdditionalInfo[0]:
+                                    text = self.composeAdditionaInfo(row)
+                                    widget = CustomWidget(item, row.getId(),
+                                                          values[valueIndex],
+                                                          addText=True, text=text,
+                                                          autocontrast=self.getApplyImageAutocontrast(),
+                                                          gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
+                                else:
+                                    widget = CustomWidget(item, row.getId(),
+                                                          values[valueIndex],
+                                                          autocontrast=self.getApplyImageAutocontrast(),
+                                                          gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
+                            else:
+                                item = values[valueIndex]
+                                widget = CustomWidget(item, row.getId(),
+                                                      values[valueIndex],
+                                                      autocontrast=self.getApplyImageAutocontrast(),
+                                                      gaussianBlurFilter=self.getApplyImageGaussianBlurFilter())
 
-                    if widget.sizeHint().height() > self._rowHeight:
-                        self._rowHeight = widget.sizeHint().height()
+                        if widget.sizeHint().height() > self._rowHeight:
+                            self._rowHeight = widget.sizeHint().height()
 
-                    width = self.calculateColumnWidth(widget, column.getIndex())
-                    if width > self._columnsWidth[column.getIndex()]:
-                        self._columnsWidth[column.getIndex()] = width
+                        width = self.calculateColumnWidth(widget, column.getIndex())
+                        if width > self._columnsWidth[column.getIndex()]:
+                            self._columnsWidth[column.getIndex()] = width
 
-                    self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
-                    self.setColumnWidth(column.getIndex(), self._columnsWidth[column.getIndex()] + 5)
+                        self.setCellWidget(i + currentRowIndex, column.getIndex(), widget)
+                        self.setColumnWidth(column.getIndex(), self._columnsWidth[column.getIndex()] + 5)
+
+                if filledColumns < 0:
+                    break
 
             if i + currentRowIndex == self._rowsCount:
                 self.setRowHeight(i + currentRowIndex, self._rowHeight + 5)
@@ -1135,7 +1152,7 @@ class TableView(QTableWidget):
     def calculateColumnWidth(self, widget, index):
         """Method to calculate the column width taking into account
         the header """
-        width = widget.sizeHint().width()
+        width = widget.sizeHint().width() if widget else 0
         headerText = self.horizontalHeader().model().headerData(index,
                                                                 Qt.Horizontal)
         font = self.horizontalHeader().font()
@@ -1162,7 +1179,7 @@ class TableView(QTableWidget):
         currenctColumnIndex = self.hScrollBar.value()
         visibleRows = self._calculateVisibleRows() + 1
         self.rows = self.objectManager.getRows(self._tableName, currentRowIndex,
-                                         visibleRows)
+                                               visibleRows)
         self.clearSelection()
         self._addRows(self.rows, currentRowIndex, currenctColumnIndex)
 
@@ -1662,7 +1679,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
         if self._galleryView:
             self.statusBarCurrentRowColumn.setText(f"Row: {row + 1}, Column: {columnIndex + 1}")
         else:
-            column = self.table.getColumns()[columnIndex]
+            column = self.getColumnByHeaderIndex(columnIndex)[1]
             columnLabel = column.getName()
             if not column.isSorteable():
                 self.statusBarCurrentRowColumn.setStyleSheet(f"color: {'red'};")
@@ -2004,8 +2021,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
     def createTableExtraAction(self, item, column):
         """Create the external program actions for the table"""
         columns = self.table.getTable().getColumns()
-        columnHeaderText = self.table.horizontalHeaderItem(column).text()
-        realIndex = self.table._columnsMap[columnHeaderText]
+        realIndex = self.getColumnByHeaderIndex(column)[0]
         renderer = columns[realIndex].getRenderer()
         extraActions = renderer.getActions()
         self.externalProgramsToolBar.clear()
@@ -2295,12 +2311,16 @@ class QTMetadataViewer(QMainWindow, IGUI):
     def _redIncDecimals(self, flag):
         """Method that control the increments or reduce decimals when a float
         table cell is selected"""
-        column = self.table.getCurrentColumn()
-        decimals = self.table.getColumns()[column].getRenderer().getDecimalsNumber()
+        column = self.getColumnByHeaderIndex(self.table.getCurrentColumn())[1]
+        decimals = column.getRenderer().getDecimalsNumber()
         redInc = -1 if flag else 1
         if decimals + redInc > 0:
-            self.table.getColumns()[column].getRenderer().setDecimalNumber(decimals + redInc)
+            column.getRenderer().setDecimalNumber(decimals + redInc)
             self.table._loadRows()
+
+    def getColumnByHeaderIndex(self, currentIndex):
+        headerText = self.table.horizontalHeaderItem(currentIndex).text()
+        return self.table.getColumnsMap()[headerText]
 
     def _applyTransformation(self, checked):
         column = self.table._columnWithImages

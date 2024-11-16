@@ -1,3 +1,9 @@
+- Nov 16, 2024 (v2.1)
+    - Fixed an error related to the visualization when sorted columns are given
+    - Calculated columns are not displayed to plot
+
+
+
 - July 11, 2024 (v2.0):
     - Adapted to show calculated fields.
     - Some list with aliases removed

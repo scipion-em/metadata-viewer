@@ -71,7 +71,7 @@ class ObjectManager:
     def __init__(self):
         self._fileName = None
         self._visibleLabels = []
-        self._columnsOrder = []
+        self._columnsOrder = {}
         self._tables = {}
         self._pageNumber = 1
         self._pageSize = 50
@@ -105,11 +105,13 @@ class ObjectManager:
     def setVisibleLabels(self, visibleLabels):
         self._visibleLabels = visibleLabels
 
-    def getColumnsOrder(self):
-        return self._columnsOrder
+    def getColumnsOrder(self, tableName):
+        if tableName not in self._columnsOrder:
+            self.setColumnsOrder(tableName, [])
+        return self._columnsOrder[tableName]
 
-    def setColumnsOrder(self, columnsOrder):
-        self._columnsOrder = columnsOrder
+    def setColumnsOrder(self, tableName, columnsOrder):
+        self._columnsOrder[tableName] = columnsOrder
 
     def isLabelVisible(self, label):
         if len(self._visibleLabels) > 0:
@@ -261,16 +263,23 @@ class ObjectManager:
 
     def setColumnsIndex(self, table):
         index = 0
-        for columnOrdered in self.getColumnsOrder():
+        tableName = table.getName()
+        columnsOrder = []
+        for columnOrdered in self.getColumnsOrder(tableName):
             for column in table.getColumns():
                 if column.getName() == columnOrdered:
                     column.setIndex(index)
                     index += 1
+                    columnsOrder.append(columnOrdered)
                     break
+        # Removing wrong columns
+        self.setColumnsOrder(tableName, columnsOrder)
+
         for column in table.getColumns():
             if column.getIndex() == -1:
                 column.setIndex(index)
                 index += 1
+                self._columnsOrder[tableName].append(column.getName())
 
     def getTable(self, tableName: str):
         """Returns a table if it is stored, otherwise a new table is
