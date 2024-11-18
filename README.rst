@@ -41,7 +41,7 @@ Contributing
 ---------------
 MetadataViewer is an open-source project, and contributions from the community
 are welcome. If you'd like to contribute or report issues, please visit our
-GitHub repository. `GitHub repository <https://github.com/fonsecareyna82/metadata_viewer/>`_.
+GitHub repository. `GitHub repository <https://github.com/scipion-em/metadata-viewer/>`_.
 
 
 Authors
