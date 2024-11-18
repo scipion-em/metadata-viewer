@@ -210,7 +210,7 @@ class ObjectManager:
                             table.isSortingAsc())
         rowPosition = currentRow % self.getPageSize()
         if rowPosition == page.getSize():
-            logger.info("The final row of the table has been reached.")
+            logger.debug("The final row of the table has been reached.")
             return None
         row = page.getRows()[rowPosition]
         return row
