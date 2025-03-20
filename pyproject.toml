@@ -1,0 +1,35 @@
+[build-system]
+requires = ["setuptools>=42", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "metadata-viewer"
+dynamic = ["version", "dependencies"]
+
+authors = [
+    {name = "Yunior Fonseca", email = "cfonseca@cnb.csic.es"},
+    {name = "Pablo Conesa", email = "pconesa@cnb.csic.es"},
+    {name = "Jorge Jiménez", email = "jjimenez@cnb.csic.es"}
+
+]
+description = "Generic metadata viewer"
+readme = "README.rst"
+requires-python = ">=3.8"
+keywords = ["metadata-viewer"]
+license = {text = "GNU General Public License v3 (GPLv3)"}
+
+[project.urls]
+Homepage = "https://github.com/scipion-em/metadata-viewer"
+Repository = "https://github.com/scipion-em/metadata-viewer"
+Issues = "https://github.com/scipion-em/metadata-viewer/issues"
+
+[tool.setuptools.package-data]
+"metadataviewer" = ["gui/resources/*"]
+
+[project.entry-points."pyworkflow.plugin"]
+metadataviewer = "metadataviewer"
+
+[tool.setuptools.dynamic]
+version = {attr = "metadataviewer.__version__"}
+dependencies = {file = ["requirements.txt"]}
+
