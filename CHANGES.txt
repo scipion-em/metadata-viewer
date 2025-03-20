@@ -1,4 +1,4 @@
-- March 20, 2025 (v2.2.1)
+- March 20, 2025 (v2.2)
     - Fixing an error when clicking a cell
 - Nov 16, 2024 (v2.1)
     - Fixed an error related to the visualization when sorted columns are given
