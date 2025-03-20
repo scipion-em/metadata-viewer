@@ -2237,7 +2237,7 @@ class QTMetadataViewer(QMainWindow, IGUI):
            Here the selection is handled"""
 
         modifiers = QApplication.keyboardModifiers()
-        rowId = self.table.cellWidget(row, 0).getId()
+        rowId = self.table.cellWidget(row, column).getId()
         if modifiers == Qt.NoModifier:  # Simple click
             self.table.getTable().getSelection().clear()
             self.table.getTable().getSelection().addRowSelected(rowId)
