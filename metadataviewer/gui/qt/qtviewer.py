@@ -896,6 +896,7 @@ class TableView(QTableWidget):
         self.setSelectionBehavior(QTableWidget.SelectRows)
         self._oldzoom = ZOOM_SIZE
         self._hasTransformation = False
+        self.setAutoScroll(False)
 
     def createPlotDialog(self):
         self.plotDialog = PlotColumns(self, self)
@@ -1230,6 +1231,7 @@ class GalleryView(QTableWidget):
         self._oldzoom = ZOOM_SIZE
         self._rowHeight = ZOOM_SIZE
         self._defineStyles()
+        self.setAutoScroll(False)
 
     def setTableName(self, tableName):
         """Set the table name"""
