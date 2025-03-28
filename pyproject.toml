@@ -26,8 +26,6 @@ Issues = "https://github.com/scipion-em/metadata-viewer/issues"
 [tool.setuptools.package-data]
 "metadataviewer" = ["gui/resources/*"]
 
-[project.entry-points."pyworkflow.plugin"]
-metadataviewer = "metadataviewer"
 
 [tool.setuptools.dynamic]
 version = {attr = "metadataviewer.__version__"}
