@@ -1,4 +1,6 @@
-- March 27, 2025 (v2.3)
+- April 1, 2025 (v2.4.1)
+    - Changing the way to export to .csv
+- March 27, 2025 (v2.4)
     - Fixing an error related to selection
     - Avoiding unnecessary event calls
 - March 20, 2025 (v2.2)
