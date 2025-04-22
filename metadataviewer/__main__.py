@@ -47,6 +47,8 @@ def defineArgs():
     parser.add_argument("--extensionpath", help="Path to a module to load to extend the viewer", type=str, default=None)
     parser.add_argument("--visiblelabels", help="List of column names that will be visible", type=str, default=None)
     parser.add_argument("--orderlabels", help="List of column names that will be used to stablished a columns order", type=str, default=None)
+    parser.add_argument("--renderlabels", help="List of column names that will be rendered",
+                        type=str, default=None)
 
     return parser
 
@@ -77,7 +79,11 @@ def main():
 
     if args.orderlabels:
         logger.info("Order labels: %s" % args.orderlabels)
-        objectManager.setColumnsOrder('objects', args.orderlabels.split(' '))
+        objectManager.setColumnsOrder(args.orderlabels.split(' '))
+
+    if args.renderlabels:
+        logger.info("Render labels: %s" % args.renderlabels)
+        objectManager.setRenderLabels(args.renderlabels.split(' '))
 
     objectManager.open(args)
 

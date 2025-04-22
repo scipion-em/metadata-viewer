@@ -670,7 +670,9 @@ class ColumnPropertiesTable(QDialog):
             # checking render column
             isImageColumn = column.getRenderer().renderType() == Image
             if self._loadFirstTime and isImageColumn:
-                self.renderCheckBoxList[column.getIndex()].setChecked(True)
+                renderLabels = self._table.getObjectManager().getRenderLabels()
+                renderColumn = column.getName() in renderLabels if renderLabels else True
+                self.renderCheckBoxList[column.getIndex()].setChecked(renderColumn)
             elif not isImageColumn:
                 self.renderCheckBoxList[column.getIndex()].setEnabled(False)
 
@@ -918,7 +920,7 @@ class TableView(QTableWidget):
         self.vScrollBar = CustomScrollBar()
         self.hScrollBar = QScrollBar()
         self._columnsMap = {}
-        self._columnsOrder = self.objectManager.getColumnsOrder(tableName)
+        self._columnsOrder = self.objectManager.getColumnsOrder()
         self._createHeader()
         self._table = self.objectManager.getTable(self._tableName)
         self.columns = self._table.getColumns()
