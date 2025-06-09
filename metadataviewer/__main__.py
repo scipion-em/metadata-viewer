@@ -56,7 +56,10 @@ def defineArgs():
 def main():
     parser = defineArgs()
     argsList = sys.argv[1:]
-    args = parser.parse_args(argsList)
+    args, unknown = parser.parse_known_args(argsList)
+
+    if unknown:
+        logger.warning(f"Ignoring unknown arguments: {' '.join(unknown)}")
 
     logger.info('Calling metadata viewer from command line')
     from metadataviewer.model import ObjectManager
