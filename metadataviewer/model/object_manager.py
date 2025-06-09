@@ -26,13 +26,12 @@
 # **************************************************************************
 import logging
 import sys
-
-logger = logging.getLogger()
-
 import os
-import csv
+import numpy as np
 from functools import lru_cache
 from abc import abstractmethod
+
+logger = logging.getLogger()
 
 from metadataviewer.model import Page, ImageRenderer
 
@@ -71,7 +70,8 @@ class ObjectManager:
     def __init__(self):
         self._fileName = None
         self._visibleLabels = []
-        self._columnsOrder = {}
+        self._columnsOrder = []
+        self._renderLabels = []
         self._tables = {}
         self._pageNumber = 1
         self._pageSize = 50
@@ -105,17 +105,26 @@ class ObjectManager:
     def setVisibleLabels(self, visibleLabels):
         self._visibleLabels = visibleLabels
 
-    def getColumnsOrder(self, tableName):
-        if tableName not in self._columnsOrder:
-            self.setColumnsOrder(tableName, [])
-        return self._columnsOrder[tableName]
+    def getRenderLabels(self):
+        return self._renderLabels
 
-    def setColumnsOrder(self, tableName, columnsOrder):
-        self._columnsOrder[tableName] = columnsOrder
+    def setRenderLabels(self,  renderLabels):
+        self._renderLabels = renderLabels
+
+    def getColumnsOrder(self):
+        return self._columnsOrder
+
+    def setColumnsOrder(self, columnsOrder):
+        self._columnsOrder = columnsOrder
 
     def isLabelVisible(self, label):
         if len(self._visibleLabels) > 0:
             return label in self._visibleLabels
+        return True
+
+    def isLabelRendered(self, label):
+        if len(self._renderLabels) > 0:
+            return label in self._renderLabels
         return True
 
     def setGui(self, gui: IGUI):
@@ -265,7 +274,7 @@ class ObjectManager:
         index = 0
         tableName = table.getName()
         columnsOrder = []
-        for columnOrdered in self.getColumnsOrder(tableName):
+        for columnOrdered in self.getColumnsOrder():
             for column in table.getColumns():
                 if column.getName() == columnOrdered:
                     column.setIndex(index)
@@ -273,13 +282,13 @@ class ObjectManager:
                     columnsOrder.append(columnOrdered)
                     break
         # Removing wrong columns
-        self.setColumnsOrder(tableName, columnsOrder)
+        self.setColumnsOrder(columnsOrder)
 
         for column in table.getColumns():
             if column.getIndex() == -1:
                 column.setIndex(index)
                 index += 1
-                self._columnsOrder[tableName].append(column.getName())
+                self._columnsOrder.append(column.getName())
 
     def getTable(self, tableName: str):
         """Returns a table if it is stored, otherwise a new table is
@@ -321,23 +330,31 @@ class ObjectManager:
         selection = table.getSelection().getSelection()
         columns = table.getColumns()
         filepath = self._gui.getSaveFileName()
-        if filepath:
-            with open(filepath, 'w', newline='') as csvFile:
-                csvWriter = csv.writer(csvFile)
-                header_data = [col.getName() for col in columns]
-                csvWriter.writerow(header_data)
 
-                if selection and len(selection) > 1:
+        if filepath:
+            with open(filepath, 'w', encoding='utf-8') as txtFile:
+                # Write headers
+                header_data = [col.getName() for col in columns]
+                txtFile.write(",".join(header_data) + "\n")
+
+                def formatValue(value):
+                    if isinstance(value, np.ndarray):
+                        return str(value).replace(",", "").replace('\n', '')  # Remove commas but keep brackets
+                    return str(value)
+
+                if selection and len(selection) > 1:  # Export the selected rows
                     for row, rowId in enumerate(selection):
-                        rowValues = self.getCurrentRow(table,  rowId - 1).getValues()
+                        rowValues = self.getCurrentRow(table, rowId - 1).getValues()
                         if rowValues is not None:
-                            csvWriter.writerow(rowValues)
-                else:  # Export all the table
+                            formattedValues = [formatValue(val) for val in rowValues]
+                            txtFile.write(",".join(formattedValues) + "\n")
+                else:  # Export the entire table
                     rowCount = self.getTableRowCount(tableName)
                     for rowId in range(rowCount):
                         rowValues = self.getCurrentRow(table, rowId).getValues()
                         if rowValues is not None:
-                            csvWriter.writerow(rowValues)
+                            formattedValues = [formatValue(val) for val in rowValues]
+                            txtFile.write(",".join(formattedValues) + "\n")
 
 
 
