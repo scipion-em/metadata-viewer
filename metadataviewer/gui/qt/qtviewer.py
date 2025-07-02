@@ -920,9 +920,9 @@ class TableView(QTableWidget):
         self.vScrollBar = CustomScrollBar()
         self.hScrollBar = QScrollBar()
         self._columnsMap = {}
-        self._columnsOrder = self.objectManager.getColumnsOrder()
         self._createHeader()
         self._table = self.objectManager.getTable(self._tableName)
+        self._columnsOrder = self._table.getColumnsOrder()
         self.columns = self._table.getColumns()
         self._columnWithImages = self.getColumnWithImages()
         self.tableWithAdditionalInfo = self.objectManager.getTableWithAdditionalInfo()
@@ -1090,7 +1090,7 @@ class TableView(QTableWidget):
         visibleRows = viewportHeight // rowHeight + 1
         return visibleRows
 
-    def _addRows(self, rows, currentRowIndex, currenctColumnIndex):
+    def _addRows(self, rows, currentRowIndex, currentColumnIndex):
         """Add rows to the table"""
         columnsCount = self._calculateVisibleColumns()
         endColumn = len(self._columns)
@@ -1103,7 +1103,7 @@ class TableView(QTableWidget):
                                                                  0, i + currentRowIndex,
                                                                  self.columnCount() - 1), True)
             filledColumns = columnsCount
-            for col in range(currenctColumnIndex, endColumn):
+            for col in range(currentColumnIndex, endColumn):
                 if self._columnsOrder[col] in self._columnsMap:
                     valueIndex, column = self._columnsMap[self._columnsOrder[col]]
                     if column.isVisible():
@@ -1178,13 +1178,13 @@ class TableView(QTableWidget):
 
     def _loadRows(self):
         """Load the table rows"""
-        currentRowIndex = self.vScrollBar.value() - 1
-        currenctColumnIndex = self.hScrollBar.value()
+        currentRowIndex = max(self.vScrollBar.value() - 1, 0)
+        currentColumnIndex = max(self.hScrollBar.value() - 1, 0)
         visibleRows = self._calculateVisibleRows() + 1
         self.rows = self.objectManager.getRows(self._tableName, currentRowIndex,
                                                visibleRows)
         self.clearSelection()
-        self._addRows(self.rows, currentRowIndex, currenctColumnIndex)
+        self._addRows(self.rows, currentRowIndex, currentColumnIndex)
 
     def getCurrentColumn(self):
         """Get the current column"""

@@ -35,6 +35,7 @@ MetadataViewer supports a wide range of file formats(through Scipion), including
 * star files
 * xmd files
 * sqlite files
+* cs files
 
 
 Contributing

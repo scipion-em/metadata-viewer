@@ -35,8 +35,6 @@ from metadataviewer.dao.numpy_dao import NumpyDao
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-PROPERTIES_TABLE_LABELS = ' key value'
-
 
 def defineArgs():
     parser = argparse.ArgumentParser(prog="Metadata viewer", description="Launcher of Metadata viewer form the command line.")
@@ -77,6 +75,7 @@ def main():
 
     if args.visiblelabels:
         logger.info("Visible labels: %s" % args.visiblelabels)
+        PROPERTIES_TABLE_LABELS = ' key value'
         args.visiblelabels += PROPERTIES_TABLE_LABELS
         objectManager.setVisibleLabels(args.visiblelabels.split(' '))
 

@@ -26,7 +26,7 @@
 # **************************************************************************
 
 from abc import abstractmethod
-from metadataviewer.model import Page, Table, Column
+from metadataviewer.model import Page, Table
 
 
 class IDAO:

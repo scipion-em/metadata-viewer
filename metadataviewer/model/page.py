@@ -28,7 +28,7 @@ import logging
 
 logger = logging.getLogger()
 
-from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, BoolRenderer,
+from .renderers import (IntRenderer, FloatRenderer, ImageRenderer,
                         MatrixRender, StrRenderer)
 
 
@@ -171,6 +171,7 @@ class Table:
         self._actions = []
         self._selection = Selection()
         self._hasColumnId = True
+        self._columnsOrder = []
 
     def hasColumnId(self):
         """Return True if column Id is present in the table,
@@ -252,6 +253,12 @@ class Table:
             if column.getName() == label:
                 return index
         return -1
+
+    def getColumnsOrder(self):
+        return self._columnsOrder
+
+    def setColumnsOrder(self, columnsOrder):
+        self._columnsOrder = columnsOrder
 
     def createColumns(self, columns, values):
         """

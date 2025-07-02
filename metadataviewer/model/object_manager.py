@@ -272,7 +272,6 @@ class ObjectManager:
 
     def setColumnsIndex(self, table):
         index = 0
-        tableName = table.getName()
         columnsOrder = []
         for columnOrdered in self.getColumnsOrder():
             for column in table.getColumns():
@@ -281,14 +280,13 @@ class ObjectManager:
                     index += 1
                     columnsOrder.append(columnOrdered)
                     break
-        # Removing wrong columns
-        self.setColumnsOrder(columnsOrder)
-
         for column in table.getColumns():
             if column.getIndex() == -1:
                 column.setIndex(index)
                 index += 1
-                self._columnsOrder.append(column.getName())
+                columnsOrder.append(column.getName())
+        # Removing wrong columns
+        table.setColumnsOrder(columnsOrder)
 
     def getTable(self, tableName: str):
         """Returns a table if it is stored, otherwise a new table is
@@ -296,11 +294,11 @@ class ObjectManager:
 
         table = self._tables.get(tableName, None)
         if table is not None:
-
             if table.configured():
                 return table
             else:
                 self._dao.fillTable(table, self)
+                table.setColumnsOrder(self._columnsOrder)
                 self.setColumnsIndex(table)
                 return table
         else:

@@ -2,7 +2,7 @@ import logging
 import numpy
 logger = logging.getLogger(__name__)
 from metadataviewer.dao.model import IDAO
-from metadataviewer.model import Table, Column, StrRenderer, IntRenderer, FloatRenderer,Page
+from metadataviewer.model import Table, Column, StrRenderer, IntRenderer, FloatRenderer, Page
 
 
 class NumpyDao(IDAO):
