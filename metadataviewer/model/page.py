@@ -28,7 +28,7 @@ import logging
 
 logger = logging.getLogger()
 
-from .renderers import (IntRenderer, FloatRenderer, ImageRenderer,
+from .renderers import (IntRenderer, FloatRenderer, ImageRenderer, BoolRenderer,
                         MatrixRender, StrRenderer)
 
 
