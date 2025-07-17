@@ -1178,8 +1178,8 @@ class TableView(QTableWidget):
 
     def _loadRows(self):
         """Load the table rows"""
-        currentRowIndex = max(self.vScrollBar.value() - 1, 0)
-        currentColumnIndex = max(self.hScrollBar.value() - 1, 0)
+        currentRowIndex = max(self.vScrollBar.value() - 1, -1)
+        currentColumnIndex = max(self.hScrollBar.value() - 1, -1)
         visibleRows = self._calculateVisibleRows() + 1
         self.rows = self.objectManager.getRows(self._tableName, currentRowIndex,
                                                visibleRows)
