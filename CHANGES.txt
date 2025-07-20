@@ -1,6 +1,7 @@
 - July 2, 2025 (v2.5.1)
     - Fixing a conflict selecting a table with its ordered labels
     - Fixing an error ordering by a column
+    - Normalizing images
 - June 9, 2025 (v2.5)
     - Handling render labels
     - Changing the way to export to .csv

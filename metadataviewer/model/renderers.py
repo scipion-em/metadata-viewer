@@ -218,9 +218,19 @@ class ImageRenderer(IRenderer):
         image = imageReader.open(value)
         sizeX, sizeY = image.size
         imageR = image.resize((size, int(size*sizeY/sizeX)))
+        imageR = self._normalizeImage(imageR)
         imageR.thumbnail((size, size))
         imageR = imageR.rotate(rotationAngle, fillcolor='gray')
         return imageR
+
+    def _normalizeImage(self, image):
+        imageR = np.asarray(image)
+        iMax = imageR.max()
+        iMin = imageR.min()
+        imageR = ((imageR - iMin) / (iMax - iMin) * 255).astype(np.uint8)
+        imageR = Image.fromarray(imageR)
+        return imageR
+
 
     def renderType(self):
         return Image
