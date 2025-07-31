@@ -1068,13 +1068,13 @@ class TableView(QTableWidget):
         self.setRowCount(self._rowsCount)
         self._loadRows()
 
-    def _calculateVisibleColumns(self):
+    def _calculateVisibleColumns(self, currentColumnIndex):
         """Method tha calculate how many columns are visible"""
         viewportWidth = self.parent().width() if self.parent() else self.viewport().width()
         visibleCols = 0
         columnX = 0
 
-        for col in range(self.columnCount()):
+        for col in range(currentColumnIndex, self.columnCount()):
             width = self.calculateColumnWidth(None, col)
             columnX += width
             if columnX < viewportWidth:
@@ -1092,7 +1092,7 @@ class TableView(QTableWidget):
 
     def _addRows(self, rows, currentRowIndex, currentColumnIndex):
         """Add rows to the table"""
-        columnsCount = self._calculateVisibleColumns()
+        columnsCount = self._calculateVisibleColumns(currentColumnIndex)
         endColumn = len(self._columns)
 
         for i in range(len(rows)):
